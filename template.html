@@ -1,0 +1,846 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@latest/dist/web/static/pretendard.css">
+  <title>{{data.title}} - 종합 현황</title>
+  <style>
+    :root{
+      --bg:oklch(97.5% .006 240);--surface:#fff;--surface-2:oklch(97% .008 238);
+      --fg:oklch(27% .03 250);--muted:oklch(55% .02 250);--border:oklch(92% .009 238);
+      --accent:oklch(57% .13 222);--teal:oklch(63% .10 178);--violet:oklch(60% .12 300);
+      --amber:oklch(70% .12 70);--navy:oklch(32% .045 256);--slate:oklch(50% .04 256);
+      --ink:oklch(24% .03 256);
+      --shadow:0 1px 2px oklch(40% .03 250/.04),0 10px 30px oklch(40% .03 250/.07);
+      --shadow-lg:0 4px 12px oklch(40% .03 250/.08),0 30px 60px oklch(40% .03 250/.16);
+      --font-display:"Pretendard",-apple-system,BlinkMacSystemFont,sans-serif;
+      --font-body:"Pretendard",-apple-system,BlinkMacSystemFont,sans-serif;
+      --font-mono:"Pretendard",monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
+    a{color:inherit;text-decoration:none}
+    :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+    .wrap{max-width:1240px;margin:0 auto;padding:24px 28px 72px}
+    /* top bar */
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px}
+    .brand{font-weight:720;font-size:19px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+    .brand .mark{width:26px;height:26px;border-radius:8px;background:conic-gradient(from 210deg,var(--accent),var(--teal),var(--accent))}
+    .tools{display:flex;align-items:center;gap:8px}
+    .tbtn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font-weight:600;font-size:13.5px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+    .tbtn:hover{border-color:oklch(80% .03 240);box-shadow:var(--shadow)}
+    .tbtn svg{width:17px;height:17px;color:var(--muted)}
+    .icononly{width:40px;padding:0;justify-content:center}
+    /* overview */
+    .overview{text-align:center;padding:40px 0 30px}
+    .kicker{color:var(--muted);font-weight:650;font-size:12px;letter-spacing:.16em;text-transform:uppercase}
+    .grand{font-family:var(--font-display);font-size:clamp(40px,8vw,86px);font-weight:640;letter-spacing:-.035em;color:var(--ink);line-height:1;margin:12px 0 14px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+    .uline{width:46px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--teal));margin:0 auto 14px}
+    .meta{color:var(--muted);display:flex;gap:8px 16px;flex-wrap:wrap;justify-content:center;font-size:13.5px;align-items:center}
+    .meta .up{color:oklch(50% .11 175);font-weight:650}
+    .meta .chip{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px 11px;font-size:12px;font-weight:600}
+    /* cards */
+    .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:20px;justify-items:center}
+    .ccard{display:block;perspective:1400px;width:100%;max-width:236px;cursor:pointer;position:relative;transform-origin:center center;will-change:transform,opacity,filter}
+    .ci{position:relative;width:100%;aspect-ratio:5/7;transition:transform .6s cubic-bezier(.2,.75,.25,1);transform-style:preserve-3d}
+    .ccard:hover .ci,.ccard:focus-visible .ci{transform:rotateY(180deg)}
+    .cf{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:18px;padding:16px;display:flex;flex-direction:column;overflow:hidden}
+    .front{background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);transition:box-shadow .2s,transform .2s}
+    .ccard:hover .front{box-shadow:var(--shadow-lg)}
+    .corner{display:none}
+    .corner .cdot{width:8px;height:8px;border-radius:3px}
+    .corner.br{align-self:flex-end;transform:rotate(180deg)}
+    .emblem{flex:1;min-height:0;display:grid;place-items:center;opacity:.95}
+    .emblem svg{width:54px;height:54px;stroke-width:1.5}
+    .cmid{text-align:center;z-index:1;margin-top:4px}
+    .cname{font-family:var(--font-display);font-weight:650;font-size:19px;letter-spacing:-.01em}
+    .cnote{color:var(--muted);font-size:11.5px;letter-spacing:.01em;margin-top:3px;line-height:1.35}
+    .amt{margin-top:10px;font-family:var(--font-display);font-size:23px;font-weight:660;color:var(--ink);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+    .ccard[data-c=labor]{--cat:var(--accent)}.ccard[data-c=meal]{--cat:var(--teal)}.ccard[data-c=ad]{--cat:var(--violet)}.ccard[data-c=op]{--cat:var(--amber)}.ccard[data-c=etc]{--cat:var(--slate)}
+    .cdot{background:var(--cat,var(--accent))}.emblem{color:var(--cat,var(--accent))}
+    .back{transform:rotateY(180deg);background:
+      radial-gradient(circle at 1px 1px,oklch(90% .01 240) 1px,transparent 0) 0 0/14px 14px,
+      linear-gradient(160deg,var(--surface),var(--surface-2));
+      border:1px solid var(--border);box-shadow:var(--shadow)}
+    .back .bh{font-weight:650;font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+    .back ul{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+    .back li{font-size:13.5px;display:flex;justify-content:space-between;gap:10px}
+    .back li span:last-child{font-family:var(--font-mono);color:var(--fg);font-weight:600}
+    .open-hint{margin-top:auto;display:inline-flex;align-items:center;gap:6px;font-weight:650;font-size:14px;color:var(--accent)}
+    .open-hint svg{width:16px;height:16px}
+    /* CSS :target modals (no JS) */
+    .modal{position:fixed;inset:0;display:none;place-items:center;z-index:50;padding:20px}
+    .modal:target{display:grid}
+    .modal .bg{position:fixed;inset:0;background:oklch(28% .03 256/.4);backdrop-filter:blur(4px)}
+    .modal-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:22px;box-shadow:var(--shadow-lg);width:min(700px,95vw);max-height:90vh;overflow:auto;padding:22px 24px 24px}
+    .modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px}
+    .modal-head h2{margin:0;font-size:18px;font-weight:650}.modal-head .sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+    .x{width:34px;height:34px;flex:none;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--muted);display:grid;place-items:center}
+    .x:hover{background:var(--surface-2);color:var(--fg)}.x svg{width:18px;height:18px}
+    .menu-sheet .modal-card{width:min(280px,95vw)}
+    .menu-sheet a.mi{display:flex;align-items:center;gap:11px;padding:13px 12px;border-radius:11px;font-weight:600;font-size:15px;transition:background .13s}
+    .menu-sheet a.mi:hover{background:var(--surface-2)}.menu-sheet a.mi svg{width:18px;height:18px;color:var(--muted)}
+    /* static stage timeline */
+    .track{position:relative;height:48px;border-radius:12px;background:var(--surface-2);margin:18px 2px;display:flex;overflow:hidden}
+    .seg{display:flex;flex-direction:column;justify-content:center;padding:0 11px;color:#fff;overflow:hidden}
+    .seg-pre{background:var(--teal)}.seg-main{background:var(--accent)}.seg-add{background:var(--violet)}.seg-post{background:var(--slate)}
+    .seg-l{font-size:12px;font-weight:700}.seg-r{font-size:10.5px;opacity:.92;font-family:var(--font-mono);white-space:nowrap}
+    .trend{height:230px;display:flex;align-items:end;gap:18px;padding:22px 6px 0}
+    .tmonth{flex:1;display:grid;gap:8px;align-items:end;color:var(--muted);font-size:13px;text-align:center}
+    .tmonth i{display:block;height:var(--h);min-height:34px;background:linear-gradient(180deg,var(--accent),var(--teal));border-radius:12px 12px 5px 5px}
+    .tmonth b{font-weight:600;color:var(--fg)}
+    .mhint{color:var(--muted);font-size:12.5px;margin:14px 0 0;line-height:1.6}
+    @media(max-width:1000px){.cards{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:720px){.cards{grid-template-columns:repeat(2,1fr)}.tbtn span{display:none}.tbtn{padding:0;width:40px;justify-content:center}}
+    @media(max-width:460px){.cards{grid-template-columns:1fr}}
+    @media(prefers-reduced-motion:reduce){.ci{transition:none}}
+
+    /* Split View styles */
+    .split-container {
+      display: block;
+      width: 100%;
+    }
+    .detail-content {
+      display: none;
+    }
+    .back-to-grid-btn {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg);
+      cursor: pointer;
+      margin-right: 10px;
+      transition: background .15s, border-color .15s;
+    }
+    .back-to-grid-btn:hover {
+      background: var(--surface-2);
+      border-color: oklch(80% .03 240);
+    }
+    .back-to-grid-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    body.split-view {
+      overflow: hidden;
+    }
+    body.split-view .wrap {
+      max-width: 100%;
+      height: 100vh;
+      padding: 16px 20px 20px;
+      min-height: 0;
+    }
+    body.split-view .back-to-grid-btn {
+      display: inline-flex;
+    }
+    body.split-view main {
+      display: grid;
+      grid-template-columns: 280px minmax(0,1fr);
+      grid-template-rows: auto minmax(0,1fr);
+      gap: 14px 20px;
+      padding: 12px 0 0;
+      height: calc(100vh - 72px);
+      min-height: 0;
+      align-items: stretch;
+    }
+    body.split-view .overview {
+      display: block;
+      grid-column: 1;
+      grid-row: 1;
+      text-align: left;
+      padding: 8px 6px 2px 2px;
+      border-bottom: 1px solid color-mix(in oklch, var(--border) 76%, transparent);
+    }
+    body.split-view .overview .kicker {
+      font-size: 10px;
+      letter-spacing: .12em;
+    }
+    body.split-view .overview .grand {
+      font-size: clamp(28px, 3.1vw, 40px);
+      margin: 8px 0 10px;
+    }
+    body.split-view .overview .uline {
+      margin: 0 0 12px;
+    }
+    body.split-view .overview .meta {
+      justify-content: flex-start;
+      gap: 6px 10px;
+      font-size: 12px;
+    }
+    body.split-view .overview .meta .chip {
+      display: none;
+    }
+    body.split-view .split-container {
+      display: contents;
+    }
+    body.split-view .cards {
+      grid-column: 1;
+      grid-row: 2;
+      width: 100%;
+      max-width: none;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      align-content: start;
+      overflow: auto;
+      min-height: 0;
+      padding: 0 2px 10px 2px;
+      justify-items: stretch;
+    }
+    body.cards-to-rail .cards {
+      overflow: visible;
+    }
+    body.split-view .ccard {
+      max-width: none;
+      perspective: none;
+      height: 78px;
+    }
+    body.split-view .ccard .ci {
+      aspect-ratio: auto;
+      height: 100%;
+      transform: none;
+      transition: none;
+    }
+    body.split-view .ccard:hover .ci,
+    body.split-view .ccard:focus-visible .ci {
+      transform: none;
+    }
+    body.split-view .ccard .front {
+      flex-direction: row;
+      align-items: center;
+      padding: 12px 14px;
+      gap: 12px;
+      border-radius: 14px;
+      height: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+    body.split-view .ccard:hover .front {
+      box-shadow: var(--shadow);
+    }
+    body.split-view .ccard.on .front {
+      background: color-mix(in oklch, var(--cat) 7%, white);
+      border-color: var(--cat);
+      box-shadow: 0 0 0 2px color-mix(in oklch, var(--cat) 66%, white), var(--shadow-lg);
+    }
+    body.split-view .ccard .back {
+      display: none !important;
+    }
+    body.split-view .ccard .emblem {
+      flex: none;
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      margin: 0;
+    }
+    body.split-view .ccard .emblem svg {
+      width: 24px;
+      height: 24px;
+    }
+    body.split-view .ccard .cmid {
+      text-align: left;
+      margin: 0;
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    body.split-view .ccard .cname {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    body.split-view .ccard .cnote {
+      display: none;
+    }
+    body.split-view .ccard .amt {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--cat);
+    }
+    body.split-view .ccard .corner {
+      display: none !important;
+    }
+    body.split-view .detail-content {
+      display: block;
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      height: 100%;
+      min-height: 0;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      position: relative;
+      opacity: 0;
+      transform: translateX(28px) scale(.985);
+      pointer-events: none;
+      transition: opacity .24s ease, transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease;
+    }
+    body.split-view.panel-ready .detail-content {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+      pointer-events: auto;
+    }
+    body.split-view.card-transitioning .detail-content {
+      box-shadow: 0 0 0 1px color-mix(in oklch, var(--border) 72%, transparent);
+    }
+    .detail-content iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: var(--surface);
+    }
+    body.card-transitioning .ccard {
+      z-index: calc(40 - var(--card-order, 0));
+    }
+    body.card-transitioning .ccard.card-flying .ci {
+      animation: railFlip .42s cubic-bezier(.22,.82,.19,1) both;
+      animation-delay: calc(var(--card-order, 0) * 48ms);
+      transform-style: preserve-3d;
+    }
+    body.split-view.card-transitioning .ccard.card-flying .back {
+      display: flex !important;
+    }
+    body.split-view.card-transitioning .ccard.card-flying .front {
+      box-shadow: var(--shadow-lg);
+    }
+    @keyframes railFlip {
+      0% { transform: rotateY(0deg) scale(1); }
+      40% { transform: rotateY(96deg) scale(.985); }
+      68% { transform: rotateY(-10deg) scale(.992); }
+      100% { transform: rotateY(0deg) scale(1); }
+    }
+
+    @media(max-width:1080px){
+      body.split-view main {
+        grid-template-columns: 248px minmax(0,1fr);
+      }
+      body.split-view .overview .grand {
+        font-size: clamp(26px, 3vw, 36px);
+      }
+    }
+    @media(max-width:920px){
+      body.split-view {
+        overflow: auto;
+      }
+      body.split-view .wrap {
+        height: auto;
+        min-height: 100vh;
+      }
+      body.split-view main {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        gap: 14px;
+      }
+      body.split-view .overview {
+        padding: 0;
+        border-bottom: 0;
+      }
+      body.split-view .split-container {
+        display: flex;
+        flex-direction: column;
+      }
+      body.split-view .cards {
+        width: 100%;
+        max-width: 100%;
+        grid-template-columns: repeat(5, minmax(112px,1fr));
+        height: auto;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 6px;
+      }
+      body.split-view .ccard {
+        min-width: 112px;
+        height: 68px;
+      }
+      body.split-view .ccard .front {
+        padding: 8px 10px;
+        gap: 8px;
+      }
+      body.split-view .ccard .emblem {
+        width: 28px;
+        height: 28px;
+      }
+      body.split-view .ccard .emblem svg {
+        width: 18px;
+        height: 18px;
+      }
+      body.split-view .ccard .cname {
+        font-size: 12px;
+      }
+      body.split-view .ccard .amt {
+        font-size: 12px;
+      }
+      body.split-view .detail-content {
+        min-height: 70vh;
+      }
+    }
+    @media(max-width:640px){
+      body.split-view .cards {
+        grid-template-columns: repeat(3, minmax(112px,1fr));
+      }
+    }
+    @media(prefers-reduced-motion:reduce){
+      body.card-transitioning .ccard.card-flying .ci {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 class="sr-only">{{data.project.name}} 종합 현황</h1>
+    <header class="topbar">
+      <div class="brand">
+        <button class="back-to-grid-btn" id="backToGridBtn" aria-label="종합 현황으로 돌아가기">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <span class="mark"></span>
+        Easy Commission
+      </div>
+      <nav class="tools" aria-label="도구">
+        <button class="tbtn" data-modal="stageModal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h16M4 8a2 2 0 1 1 4 0 2 2 0 0 1-4 0M4 16h16M16 16a2 2 0 1 1 4 0 2 2 0 0 1-4 0"/></svg><span>분양 기간</span></button>
+        <a class="tbtn" href="#trendModal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>월별 비용</span></a>
+        <a class="tbtn icononly" href="#settingsSheet" aria-label="설정 메뉴"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.2.61.78 1.05 1.42 1.09H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>
+      </nav>
+    </header>
+
+    <main>
+    <section class="overview">
+      <div class="kicker">종합 현황 · 5개 비용 합계</div>
+      <div class="grand">{{data.summary.grandTotal}}</div>
+      <div class="uline"></div>
+      <div class="meta">
+        <span class="up">전월 대비 {{data.summary.change}}</span>
+        <span class="chip">{{data.project.status}}</span>
+        <span>업데이트 {{data.summary.updatedAt}}</span>
+      </div>
+    </section>
+
+    <div class="split-container">
+    <section class="cards">
+      <a class="ccard" data-c="labor" href="labor.html" aria-label="인건비 상세 열기">
+        <div class="ci">
+          <div class="cf front">
+            <div class="corner tl"><span class="cdot"></span>01</div>
+            <div class="emblem" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="3.5"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.2a3.5 3.5 0 0 1 0 6.8"/></svg></div>
+            <div class="cmid"><div class="cname">인건비</div><div class="cnote">{{data.cards.0.note}}</div></div>
+            <div class="amt">{{data.cards.0.value}}</div>
+            <div class="corner br"><span class="cdot"></span>01</div>
+          </div>
+          <div class="cf back">
+            <div class="bh">구성</div>
+            <ul><li><span>직무</span><span>12개</span></li><li><span>근무일</span><span>2,186일</span></li><li><span>월 평균</span><span>46.1M 원</span></li></ul>
+            <span class="open-hint">상세 열기<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </div>
+      </a>
+
+      <a class="ccard" data-c="meal" href="meal.html" aria-label="식대 상세 열기">
+        <div class="ci">
+          <div class="cf front">
+            <div class="corner tl"><span class="cdot"></span>02</div>
+            <div class="emblem" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v8M9 3v8M6 11h3v10H6zM7.5 3v8"/><path d="M17 3c-1.7 0-3 1.8-3 4.5S15.3 12 17 12v9"/></svg></div>
+            <div class="cmid"><div class="cname">식대</div><div class="cnote">{{data.cards.1.note}}</div></div>
+            <div class="amt">{{data.cards.1.value}}</div>
+            <div class="corner br"><span class="cdot"></span>02</div>
+          </div>
+          <div class="cf back">
+            <div class="bh">구성</div>
+            <ul><li><span>점심</span><span>18.5M 원</span></li><li><span>저녁</span><span>14.3M 원</span></li><li><span>수동 수정</span><span>4건</span></li></ul>
+            <span class="open-hint">상세 열기<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </div>
+      </a>
+
+      <a class="ccard" data-c="ad" href="advertising.html" aria-label="광고비 상세 열기">
+        <div class="ci">
+          <div class="cf front">
+            <div class="corner tl"><span class="cdot"></span>03</div>
+            <div class="emblem" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 16-5v12L3 14z"/><path d="M19 8a3 3 0 0 1 0 6"/><path d="M7 14.5a3 3 0 0 0 5.7 1.3"/></svg></div>
+            <div class="cmid"><div class="cname">광고비</div><div class="cnote">{{data.cards.2.note}}</div></div>
+            <div class="amt">{{data.cards.2.value}}</div>
+            <div class="corner br"><span class="cdot"></span>03</div>
+          </div>
+          <div class="cf back">
+            <div class="bh">구성</div>
+            <ul><li><span>온라인</span><span>32.0M 원</span></li><li><span>전단지</span><span>27.2M 원</span></li><li><span>집행 항목</span><span>6건</span></li></ul>
+            <span class="open-hint">상세 열기<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </div>
+      </a>
+
+      <a class="ccard" data-c="op" href="operating.html" aria-label="운영비 상세 열기">
+        <div class="ci">
+          <div class="cf front">
+            <div class="corner tl"><span class="cdot"></span>04</div>
+            <div class="emblem" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17"/><path d="M3 21h18"/><path d="M9 21v-4h6v4M9 7h2M13 7h2M9 11h2M13 11h2"/></svg></div>
+            <div class="cmid"><div class="cname">운영비</div><div class="cnote">{{data.cards.3.note}}</div></div>
+            <div class="amt">{{data.cards.3.value}}</div>
+            <div class="corner br"><span class="cdot"></span>04</div>
+          </div>
+          <div class="cf back">
+            <div class="bh">구성</div>
+            <ul><li><span>사무실</span><span>36.8M 원</span></li><li><span>장비 임대</span><span>16.8M 원</span></li><li><span>교통</span><span>9.1M 원</span></li></ul>
+            <span class="open-hint">상세 열기<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </div>
+      </a>
+
+      <a class="ccard" data-c="etc" href="miscellaneous.html" aria-label="기타비 상세 열기">
+        <div class="ci">
+          <div class="cf front">
+            <div class="corner tl"><span class="cdot"></span>05</div>
+            <div class="emblem" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></div>
+            <div class="cmid"><div class="cname">기타비</div><div class="cnote">{{data.cards.4.note}}</div></div>
+            <div class="amt">{{data.cards.4.value}}</div>
+            <div class="corner br"><span class="cdot"></span>05</div>
+          </div>
+          <div class="cf back">
+            <div class="bh">구성</div>
+            <ul><li><span>현장 예비비</span><span>8.0M 원</span></li><li><span>소모품</span><span>4.7M 원</span></li><li><span>추가 지원</span><span>5.0M 원</span></li></ul>
+            <span class="open-hint">상세 열기<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </div>
+      </a>
+      </section>
+      <div class="detail-content">
+        <iframe name="detail-iframe" id="detailIframe" title="상세 내용"></iframe>
+      </div>
+    </div>
+    </main>
+  </div>
+
+  <!-- 월별 비용 -->
+  <div class="modal" id="trendModal">
+    <a class="bg" href="#x" aria-label="닫기"></a>
+    <div class="modal-card">
+      <div class="modal-head"><div><h2>월별 비용 추이</h2><p class="sub">단계 기간에 맞춰 집계된 월별 집행</p></div><a class="x" href="#x" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></a></div>
+      <div class="trend">
+        <div class="tmonth" style="--h:38%"><i></i><b>{{data.months.0.amount}}</b><span>{{data.months.0.label}}</span></div>
+        <div class="tmonth" style="--h:56%"><i></i><b>{{data.months.1.amount}}</b><span>{{data.months.1.label}}</span></div>
+        <div class="tmonth" style="--h:68%"><i></i><b>{{data.months.2.amount}}</b><span>{{data.months.2.label}}</span></div>
+        <div class="tmonth" style="--h:40%"><i></i><b>{{data.months.3.amount}}</b><span>{{data.months.3.label}}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 설정 시트 -->
+  <div class="modal menu-sheet" id="settingsSheet">
+    <a class="bg" href="#x" aria-label="닫기"></a>
+    <div class="modal-card">
+      <div class="modal-head"><div><h2>설정</h2><p class="sub">{{data.project.name}} · {{data.project.manager}}</p></div><a class="x" href="#x" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></a></div>
+      <div style="margin-top:10px;display:grid;gap:2px">
+        <a class="mi" href="custom-tab.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>커스텀 탭</a>
+        <a class="mi" href="settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>설정</a>
+        <a class="mi" href="mobile.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg>모바일</a>
+      </div>
+    </div>
+  </div>
+  <script src="period-modal.js"></script>
+  <script>
+    (function(){
+      const cards = Array.from(document.querySelectorAll('.ccard[href$=".html"]'));
+      const iframe = document.getElementById('detailIframe');
+      const backToGridBtn = document.getElementById('backToGridBtn');
+      const utilityPages = new Set(['settings', 'custom-tab', 'mobile']);
+      const ENTRY_STAGGER_MS = 48;
+      const ENTRY_MOVE_MS = 420;
+      const ENTRY_PANEL_BUFFER_MS = 70;
+      const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+      let pendingPanelOpen = 0;
+      let ignoreNextHashChange = false;
+
+      cards.forEach((card, index) => {
+        card.style.setProperty('--card-order', index);
+      });
+
+      function clearPendingPanelOpen() {
+        if (pendingPanelOpen) {
+          window.clearTimeout(pendingPanelOpen);
+          pendingPanelOpen = 0;
+        }
+      }
+
+      function resetCardTransitionState() {
+        clearPendingPanelOpen();
+        document.body.classList.remove('card-transitioning', 'cards-to-rail');
+        cards.forEach((card, index) => {
+          card.classList.remove('card-flying');
+          card.style.transform = '';
+          card.style.transition = '';
+          card.style.setProperty('--card-order', index);
+        });
+      }
+
+      function setHashValue(value) {
+        if (!value) return;
+        const nextHash = '#' + value;
+        if (window.location.hash === nextHash) return;
+        ignoreNextHashChange = true;
+        window.location.hash = value;
+      }
+
+      function shouldAnimateCardEntry() {
+        return !reduceMotionQuery.matches && window.innerWidth > 920 && !document.body.classList.contains('split-view');
+      }
+
+      function setCardTransitionOrder(activeCard) {
+        const activeIndex = Math.max(cards.indexOf(activeCard), 0);
+        cards.forEach((card, index) => {
+          const order = index >= activeIndex
+            ? index - activeIndex
+            : cards.length - activeIndex + index;
+          card.style.setProperty('--card-order', order);
+        });
+        return cards.length - 1;
+      }
+
+      // Notify active iframe when parent event (e.g. stageModal edit) occurs
+      window.onECUpdate = () => {
+        if (iframe && iframe.contentWindow && typeof iframe.contentWindow.onECUpdate === 'function') {
+          iframe.contentWindow.onECUpdate();
+        }
+      };
+
+      function setActiveCardByHref(href) {
+        const page = (href || '').split('#')[0].split('/').pop();
+        let activeCard = null;
+        cards.forEach(card => {
+          const isActive = card.getAttribute('href') === page;
+          card.classList.toggle('on', isActive);
+          if (isActive) activeCard = card;
+        });
+        return activeCard;
+      }
+
+      function setIframeSource(href) {
+        if (!iframe || !href) return;
+        if (iframe.dataset.currentHref === href) return;
+        iframe.dataset.currentHref = href;
+        iframe.src = href;
+      }
+
+      function finishPanelOpen(cardId, updateHash) {
+        pendingPanelOpen = 0;
+        document.body.classList.remove('card-transitioning', 'cards-to-rail');
+        document.body.classList.add('panel-ready');
+        cards.forEach(card => {
+          card.classList.remove('card-flying');
+          card.style.transform = '';
+          card.style.transition = '';
+        });
+        if (updateHash) {
+          setHashValue(cardId);
+        }
+      }
+
+      function animateSplitViewEntry(card, updateHash = true, hrefOverride = '') {
+        const href = hrefOverride || card.getAttribute('href');
+        const cardId = card.getAttribute('data-c');
+        const firstRects = cards.map(entry => entry.getBoundingClientRect());
+        const maxOrder = setCardTransitionOrder(card);
+
+        document.body.classList.add('split-view', 'card-transitioning', 'cards-to-rail');
+        document.body.classList.remove('panel-ready');
+        setActiveCardByHref(href);
+        setIframeSource(href);
+
+        const lastRects = cards.map(entry => entry.getBoundingClientRect());
+        cards.forEach((entry, index) => {
+          const first = firstRects[index];
+          const last = lastRects[index];
+          const dx = first.left - last.left;
+          const dy = first.top - last.top;
+          const sx = first.width / Math.max(last.width, 1);
+          const sy = first.height / Math.max(last.height, 1);
+
+          entry.style.transition = 'none';
+          entry.style.transformOrigin = 'top left';
+          entry.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+        });
+
+        void document.body.offsetWidth;
+
+        requestAnimationFrame(() => {
+          cards.forEach(entry => {
+            const order = Number(entry.style.getPropertyValue('--card-order')) || 0;
+            entry.classList.add('card-flying');
+            entry.style.transition = `transform ${ENTRY_MOVE_MS}ms cubic-bezier(.18,.82,.24,1) ${order * ENTRY_STAGGER_MS}ms`;
+            entry.style.transform = '';
+          });
+
+          clearPendingPanelOpen();
+          pendingPanelOpen = window.setTimeout(() => {
+            finishPanelOpen(cardId, updateHash);
+          }, ENTRY_MOVE_MS + (maxOrder * ENTRY_STAGGER_MS) + ENTRY_PANEL_BUFFER_MS);
+        });
+      }
+
+      function openSplitView(card, updateHash = true, hrefOverride = '', animateEntry = false) {
+        const href = hrefOverride || card.getAttribute('href');
+        const cardId = card.getAttribute('data-c');
+
+        if (animateEntry && shouldAnimateCardEntry()) {
+          animateSplitViewEntry(card, updateHash, hrefOverride);
+          return;
+        }
+
+        resetCardTransitionState();
+        document.body.classList.add('split-view', 'panel-ready');
+        setActiveCardByHref(href);
+        setIframeSource(href);
+
+        if (updateHash) {
+          setHashValue(cardId);
+        }
+      }
+
+      function openUtilityView(href, updateHash = true) {
+        const page = href.split('#')[0];
+        resetCardTransitionState();
+        document.body.classList.add('split-view', 'panel-ready');
+        cards.forEach(card => card.classList.remove('on'));
+        setIframeSource(href);
+
+        if (updateHash) {
+          setHashValue(page.replace('.html', ''));
+        }
+      }
+
+      function exitSplitView() {
+        resetCardTransitionState();
+        document.body.classList.remove('split-view', 'panel-ready');
+        cards.forEach(c => c.classList.remove('on'));
+        if (iframe) {
+          iframe.removeAttribute('data-currentHref');
+          iframe.removeAttribute('data-current-href');
+          iframe.src = 'about:blank';
+        }
+        history.pushState(null, '', window.location.pathname);
+      }
+
+      window.ECParentClosePanel = exitSplitView;
+      window.ECParentOpenPanel = href => {
+        if (!href) return;
+        const page = href.split('#')[0];
+        if (page === 'index.html') {
+          exitSplitView();
+          return;
+        }
+
+        const matchingCard = cards.find(card => card.getAttribute('href') === page);
+        if (matchingCard) {
+          openSplitView(matchingCard, true, href, false);
+        } else {
+          openUtilityView(href, true);
+        }
+      };
+
+      cards.forEach(card => {
+        card.addEventListener('click', e => {
+          if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button > 0) return;
+          e.preventDefault();
+          openSplitView(card, true, '', true);
+        });
+      });
+
+      if (backToGridBtn) {
+        backToGridBtn.addEventListener('click', e => {
+          e.preventDefault();
+          exitSplitView();
+        });
+      }
+
+      document.querySelectorAll('#settingsSheet .mi').forEach(link => {
+        link.addEventListener('click', e => {
+          const href = link.getAttribute('href');
+          if (href && href !== '#' && !href.startsWith('javascript:')) {
+            const isModalLink = link.hasAttribute('data-modal');
+            if (!isModalLink) {
+              e.preventDefault();
+              const parts = href.split('#');
+              const page = parts[0];
+              const hash = parts[1];
+              const matchingCard = cards.find(c => c.getAttribute('href') === page);
+
+              if (matchingCard) {
+                openSplitView(matchingCard, false, hash ? href : page, false);
+                setHashValue(matchingCard.getAttribute('data-c'));
+              } else {
+                openUtilityView(href, true);
+              }
+            }
+          }
+        });
+      });
+
+      if (iframe) {
+        iframe.addEventListener('load', () => {
+          try {
+            const page = iframe.contentWindow.location.pathname.split('/').pop();
+            if (!page || page === 'about:blank') return;
+            const activeCard = setActiveCardByHref(page);
+            if (!activeCard) {
+              cards.forEach(card => card.classList.remove('on'));
+            }
+            iframe.dataset.currentHref = page + (iframe.contentWindow.location.hash || '');
+          } catch (error) {
+            // Ignore iframe sync failures in embedded preview.
+          }
+        });
+      }
+
+      function handleHash() {
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+          if (hash === 'settingsSheet' || hash === 'trendModal') {
+            return;
+          }
+
+          const matchingCard = cards.find(c => c.getAttribute('data-c') === hash);
+          if (matchingCard) {
+            openSplitView(matchingCard, false, '', false);
+          } else if (hash === 'x') {
+            const activeCard = cards.find(c => c.classList.contains('on'));
+            if (activeCard) {
+              setHashValue(activeCard.getAttribute('data-c'));
+            } else {
+              exitSplitView();
+            }
+          } else if (utilityPages.has(hash)) {
+            openUtilityView(hash + '.html', false);
+          } else {
+            exitSplitView();
+          }
+        } else {
+          exitSplitView();
+        }
+      }
+
+      window.addEventListener('hashchange', () => {
+        if (ignoreNextHashChange) {
+          ignoreNextHashChange = false;
+          return;
+        }
+        handleHash();
+      });
+      window.addEventListener('load', handleHash);
+    })();
+  </script>
+</body>
+</html>

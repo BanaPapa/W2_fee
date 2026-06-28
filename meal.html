@@ -1,0 +1,491 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@latest/dist/web/static/pretendard.css">
+<title>Easy Commission - 식대</title>
+<style>
+:root{
+  --bg:oklch(97.5% .006 240);--surface:#fff;--surface-2:oklch(97% .008 238);
+  --fg:oklch(27% .03 250);--muted:oklch(55% .02 250);--border:oklch(92% .009 238);
+  --accent:oklch(58% .12 218);--teal:oklch(64% .10 178);--violet:oklch(60% .12 300);--amber:oklch(70% .12 70);--navy:oklch(34% .045 256);--slate:oklch(50% .04 256);
+  --sun:oklch(60% .15 25);--sat:oklch(58% .12 250);
+  --shadow:0 1px 2px oklch(40% .03 250/.04),0 8px 24px oklch(40% .03 250/.06);
+  --shadow-lg:0 4px 12px oklch(40% .03 250/.08),0 30px 60px oklch(40% .03 250/.16);
+  --font:"Pretendard",-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:"Pretendard",monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:var(--font);color:var(--fg);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}button{font-family:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+/* sticky topbar */
+.topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 24px;background:oklch(97.5% .006 240/.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.left{display:flex;align-items:center;gap:12px;min-width:0}
+.back{width:40px;height:40px;flex:none;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--fg);cursor:pointer;display:grid;place-items:center;transition:background .15s,transform .05s}
+.back:hover{background:var(--surface-2)}.back:active{transform:translateY(1px)}.back svg{width:19px;height:19px}
+.minicards{display:flex;gap:8px;overflow-x:auto;padding:2px}
+.mini{flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .05s}
+.mini:hover{border-color:oklch(80% .03 240);box-shadow:var(--shadow)}.mini:active{transform:translateY(1px)}
+.mini.on{border-color:var(--accent);box-shadow:0 0 0 2px oklch(58% .12 218/.16)}
+.mini .md{width:9px;height:9px;border-radius:3px;flex:none}.mini .mn{font-weight:600;font-size:13px;white-space:nowrap}.mini .mv{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.mini[data-c=labor] .md{background:var(--accent)}.mini[data-c=meal] .md{background:var(--teal)}.mini[data-c=ad] .md{background:var(--violet)}.mini[data-c=op] .md{background:var(--amber)}.mini[data-c=etc] .md{background:var(--slate)}
+.tools{display:flex;align-items:center;gap:8px;flex:none}
+.tbtn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font-weight:600;font-size:13.5px;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .05s}
+.tbtn:hover{border-color:oklch(80% .03 240);box-shadow:var(--shadow)}.tbtn:active{transform:translateY(1px)}.tbtn svg{width:17px;height:17px;color:var(--muted)}
+.icononly{width:40px;padding:0;justify-content:center}
+.gear-wrap{position:relative}
+.gmenu{position:absolute;right:0;top:48px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-lg);padding:6px;min-width:240px;display:none;z-index:60}
+.gmenu.open{display:block}
+.gmenu a,.gmenu button.mitem{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:10px;font-weight:550;font-size:14px;color:var(--fg);transition:background .13s;width:100%;text-align:left;border:0;background:transparent;cursor:pointer}.gmenu a:hover,.gmenu button.mitem:hover{background:var(--surface-2)}.gmenu a svg,.gmenu button.mitem svg{width:17px;height:17px;color:var(--muted)}
+.gmenu .sep{height:1px;background:var(--border);margin:5px 8px}.gmenu .proj{padding:9px 12px 7px;color:var(--muted);font-size:12px;line-height:1.5}.gmenu .proj b{display:block;color:var(--fg);font-weight:650}
+.menu-sec-hd{padding:5px 12px 2px;font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--muted);text-transform:uppercase;margin-top:3px}.gmenu a.passive{pointer-events:none;opacity:.55;cursor:default}
+/* content */
+main{padding:24px 30px 52px;max-width:1280px;margin:0 auto;min-width:0}
+.k{color:var(--accent);font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+h1{font-size:34px;font-weight:640;letter-spacing:-.015em;margin:8px 0 4px}
+.total{font-size:46px;font-weight:680;letter-spacing:-.02em;color:var(--navy);margin:6px 0 0;font-variant-numeric:tabular-nums}
+.meal-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+.meal-breakdown{display:grid;grid-template-columns:repeat(3,minmax(142px,1fr));gap:10px;width:min(660px,100%)}
+.meal-breakdown .meal{display:grid;gap:9px;border:1px solid var(--border);border-radius:16px;background:var(--surface);box-shadow:var(--shadow);padding:14px 16px}
+.meal-breakdown .meal:last-child{border-bottom:1px solid var(--border)}
+.meal-breakdown .meal b{font-size:13px;color:var(--muted)}
+.meal-breakdown .num{font-size:18px;font-weight:720;color:var(--navy)}
+.meal-rate-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.meal-rate-months{font:700 11px var(--mono);color:var(--teal);background:color-mix(in oklch,var(--teal) 12%,white);border:1px solid color-mix(in oklch,var(--teal) 30%,white);border-radius:999px;padding:3px 7px;white-space:nowrap}
+.meal-rate-box{display:flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);padding:0 9px;transition:border-color .15s,box-shadow .15s}
+.meal-rate-box:focus-within{border-color:var(--teal);box-shadow:0 0 0 3px color-mix(in oklch,var(--teal) 16%,transparent)}
+.meal-rate-box input{width:100%;min-width:0;border:0;background:transparent;padding:10px 0;font:700 16px var(--mono);color:var(--navy);outline:0;text-align:right}
+.meal-rate-box span{font-size:12px;color:var(--muted)}
+.rate-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px}
+.rate-meta .num{font-size:14px}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:18px;margin-top:20px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:20px;box-shadow:var(--shadow)}
+.panel h2{margin:0 0 14px;font-size:17px;font-weight:640}
+.meal{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding:14px 0}
+.meal:last-child{border-bottom:0}.meal b{font-weight:600}
+.meal-settings{margin-top:0;padding-top:0;border-top:0}
+.settings-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.settings-head h2{margin:0!important}
+.dinner-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin:4px 0 8px}
+.dinner-head b{display:block;font-size:14px;color:var(--navy);margin-bottom:2px}.dinner-head small{display:block;color:var(--muted);font-size:12px;line-height:1.45}
+.setting-actions{display:flex;gap:5px;flex:none}.mini-action{border:1px solid var(--border);background:var(--surface);color:var(--fg);border-radius:9px;padding:7px 9px;font-size:12px;font-weight:650;cursor:pointer}.mini-action:hover{background:var(--surface-2)}
+.dinner-role-list{display:grid;gap:7px;max-height:230px;overflow:auto;padding-right:2px}
+.dinner-role{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:12px;padding:10px 11px;background:linear-gradient(180deg,var(--surface),color-mix(in oklch,var(--surface-2) 42%,white))}
+.dinner-role input{width:17px;height:17px;accent-color:var(--teal);flex:none}.role-copy{min-width:0}.role-copy b{display:block;font-size:13px;font-weight:650;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.role-copy small{display:block;margin-top:2px;color:var(--muted);font-size:11.5px}
+.meal-settings.focused{animation:settingsPulse 1.2s ease}
+@keyframes settingsPulse{0%,100%{box-shadow:none}35%{box-shadow:0 0 0 4px color-mix(in oklch,var(--teal) 18%,transparent);border-radius:16px}}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.legend{display:flex;flex-wrap:wrap;gap:14px;color:var(--muted);font-size:13px;margin-top:4px}
+.legend span{display:flex;align-items:center;gap:7px}
+.dot{width:11px;height:11px;border-radius:4px;display:inline-block}
+.auto{background:color-mix(in oklch,var(--teal) 26%,white);border:1px solid var(--teal)}
+.manual{background:color-mix(in oklch,var(--accent) 24%,white);border:1px solid var(--accent)}
+.off{background:var(--surface-2);border:1px solid var(--border)}
+.cal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.cal-months{display:inline-flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:12px}
+.cal-months button{border:0;background:transparent;color:var(--muted);font-weight:600;font-size:14px;padding:8px 14px;border-radius:9px;cursor:pointer;transition:background .15s,color .15s}
+.cal-months button:hover{color:var(--fg)}
+.cal-months button[aria-pressed="true"]{background:var(--surface);color:var(--navy);box-shadow:var(--shadow)}
+.cal-count{font-size:14px;color:var(--muted)}.cal-count b{color:var(--navy);font-weight:680;font-size:16px}
+.dow{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px}
+.dow div{text-align:center;font-size:12px;font-weight:650;color:var(--muted);padding:4px 0}
+.dow div:first-child{color:var(--sun)}.dow div:last-child{color:var(--sat)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cell{aspect-ratio:1/1;min-height:46px;border:1px solid var(--border);border-radius:12px;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:13px;color:var(--fg);cursor:pointer;transition:border-color .14s,background .14s,transform .05s;position:relative}
+.cell:hover{border-color:var(--accent)}.cell:active{transform:scale(.97)}
+.cell.blank{border:0;background:transparent;cursor:default}.cell.weekend{color:var(--muted)}
+.cell.sun .d{color:var(--sun)}.cell.sat .d{color:var(--sat)}.cell .d{font-weight:600}
+.cell .mark{font-size:11px;line-height:1;height:13px;color:transparent}
+.cell.checked{background:color-mix(in oklch,var(--teal) 14%,white);border-color:var(--teal)}.cell.checked .mark{color:var(--teal)}.cell.checked .d{font-weight:680;color:var(--fg)}
+.cell.manual{background:color-mix(in oklch,var(--accent) 14%,white);border-color:var(--accent)}.cell.manual .mark{color:var(--accent)}
+.hint{margin-top:14px;color:var(--muted);font-size:13px;line-height:1.6}
+.wunit{font-size:calc(1em - 3px)}
+.people-badge{font-size:11px;font-weight:700;color:var(--teal);font-family:var(--mono);line-height:1;height:14px}
+.day-tooltip{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:12px;line-height:1.9;box-shadow:var(--shadow-lg);pointer-events:none;z-index:100;display:none;white-space:nowrap;color:var(--fg)}
+.day-tooltip.show{display:block}
+/* modal */
+.modal{position:fixed;inset:0;display:none;place-items:center;z-index:80;padding:20px}.modal.open{display:grid}
+.modal-bg{position:fixed;inset:0;background:oklch(28% .03 256/.4);backdrop-filter:blur(4px)}
+.modal-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:22px;box-shadow:var(--shadow-lg);width:min(700px,95vw);max-height:90vh;overflow:auto;padding:22px 24px 24px}
+.modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px}.modal-head h2{margin:0;font-size:18px;font-weight:650}.modal-head .sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+.x{width:34px;height:34px;flex:none;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;display:grid;place-items:center}.x:hover{background:var(--surface-2);color:var(--fg)}.x svg{width:18px;height:18px}
+.track{position:relative;height:48px;border-radius:12px;background:var(--surface-2);margin:18px 2px;touch-action:none}
+.seg{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;padding:0 11px;border-radius:11px;color:#fff;overflow:hidden;box-shadow:inset 0 0 0 1px oklch(100% 0 0/.18)}
+.seg-pre{background:var(--teal)}.seg-main{background:var(--accent)}.seg-add{background:var(--violet)}.seg-post{background:var(--slate)}
+.seg-l{font-size:12px;font-weight:700}.seg-r{font-size:10.5px;opacity:.92;font-family:var(--mono);white-space:nowrap}
+.handle{position:absolute;top:50%;width:20px;height:66px;transform:translate(-50%,-50%);border:0;background:transparent;cursor:ew-resize;z-index:5;display:grid;place-items:center;touch-action:none}
+.handle::before{content:"";width:6px;height:100%;border-radius:6px;background:var(--surface);box-shadow:0 0 0 1px var(--border),0 4px 10px oklch(40% .03 250/.18)}
+.handle:hover::before,.handle.drag::before{box-shadow:0 0 0 2px var(--accent),0 6px 14px oklch(40% .03 250/.22)}
+.sbtns{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stage{position:relative;text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:14px;padding:12px 13px;cursor:pointer}.stage.sel{border-color:var(--accent);box-shadow:0 0 0 3px oklch(58% .12 218/.14)}
+.stage .sdot{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:7px}.stage[data-k=pre] .sdot{background:var(--teal)}.stage[data-k=main] .sdot{background:var(--accent)}.stage[data-k=add] .sdot{background:var(--violet)}.stage[data-k=post] .sdot{background:var(--slate)}
+.stage .lab{font-weight:680;font-size:14px}.stage .ko{color:var(--muted);font-size:11px}.stage .rng{margin-top:8px;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--navy)}.stage.off{opacity:.55}
+.sw{position:absolute;top:11px;right:11px;display:inline-flex;cursor:pointer}.sw input{position:absolute;opacity:0;width:0;height:0}.sw .sl{width:30px;height:18px;border-radius:999px;background:var(--border);transition:background .16s;position:relative}.sw .sl::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px oklch(40% .03 250/.3);transition:left .16s}.sw input:checked+.sl{background:var(--violet)}.sw input:checked+.sl::after{left:14px}
+.mhint{color:var(--muted);font-size:12.5px;margin:14px 0 0;line-height:1.6}
+.trend{height:230px;display:flex;align-items:end;gap:18px;padding:22px 6px 0}.tmonth{flex:1;display:grid;gap:8px;align-items:end;color:var(--muted);font-size:13px;text-align:center}.tmonth i{display:block;height:var(--h);min-height:34px;background:linear-gradient(180deg,var(--accent),var(--teal));border-radius:12px 12px 5px 5px}.tmonth b{font-weight:600;color:var(--fg)}
+@media(max-width:920px){.grid{grid-template-columns:1fr}main{padding:16px}.meal-hero{align-items:flex-start}.tbtn span{display:none}.tbtn{width:40px;padding:0;justify-content:center}.sbtns{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.meal-hero{flex-direction:column;align-items:stretch}.meal-breakdown{width:100%}}
+@media(max-width:520px){.cell{min-height:40px}.cal-months button{padding:8px 10px}.meal-breakdown{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+body.in-iframe{background:var(--surface)}
+body.in-iframe .topbar{background:var(--surface);padding:8px 16px;justify-content:flex-end}
+body.in-iframe .left{display:none!important}
+body.in-iframe main{padding-top:10px}
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="left">
+      <a class="back" href="index.html" aria-label="뒤로 가기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></a>
+      <nav class="minicards" aria-label="비용 카테고리">
+        <a class="mini" data-c="labor" href="labor.html"><span class="md"></span><span class="mn">인건비</span><span class="mv">184.2M 원</span></a>
+        <a class="mini on" data-c="meal" href="meal.html"><span class="md"></span><span class="mn">식대</span><span class="mv">32.8M 원</span></a>
+        <a class="mini" data-c="ad" href="advertising.html"><span class="md"></span><span class="mn">광고비</span><span class="mv">96.5M 원</span></a>
+        <a class="mini" data-c="op" href="operating.html"><span class="md"></span><span class="mn">운영비</span><span class="mv">71.9M 원</span></a>
+        <a class="mini" data-c="etc" href="miscellaneous.html"><span class="md"></span><span class="mn">기타비</span><span class="mv">21.9M 원</span></a>
+      </nav>
+    </div>
+    <div class="tools">
+      <button class="tbtn" data-modal="stageModal" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h16M4 8a2 2 0 1 1 4 0 2 2 0 0 1-4 0M4 16h16M16 16a2 2 0 1 1 4 0 2 2 0 0 1-4 0"/></svg><span>분양 기간</span></button>
+      <button class="tbtn" data-modal="trendModal" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>월별 비용</span></button>
+      <div class="gear-wrap">
+        <button class="tbtn icononly" id="gearBtn" aria-haspopup="true" aria-expanded="false" aria-label="설정 메뉴"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.2.61.78 1.05 1.42 1.09H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <div class="gmenu" id="gearMenu" role="menu" aria-label="설정">
+          <div class="proj"><b>강남 리버파크 분양 제안</b>2026.07.01 - 2026.10.31 · 김서연 PM</div>
+          <div class="sep"></div>
+          <div class="menu-sec-hd">프로젝트</div>
+          <a role="menuitem" href="#" data-modal="stageModal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>일정표</a>
+          <a role="menuitem" href="labor.html#openRate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg>단가표</a>
+          <div class="sep"></div>
+          <div class="menu-sec-hd">카드 설정</div>
+          <a role="menuitem" class="passive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>인건비</a>
+          <a role="menuitem" class="passive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M19 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/></svg>광고비</a>
+          <a role="menuitem" class="passive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>운영비</a>
+          <a role="menuitem" class="passive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>기타</a>
+          <div class="sep"></div>
+          <a role="menuitem" href="settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>세부사항</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="meal-hero">
+      <div>
+        <div class="k">근무 연동 식대</div>
+        <h1>식대</h1>
+        <div class="total" id="grandTotal">—</div>
+      </div>
+      <div class="meal-breakdown" aria-label="식대 단가 입력">
+        <label class="meal">
+          <span class="meal-rate-top"><b>점심 단가</b></span>
+          <span class="meal-rate-box"><input type="number" id="mealLunchRate" min="0" step="100" inputmode="numeric" aria-label="점심 단가"><span>원</span></span>
+          <span class="rate-meta">점심 합계 <span class="num" id="lunchTotal">—</span></span>
+        </label>
+        <label class="meal">
+          <span class="meal-rate-top"><b>저녁 단가</b></span>
+          <span class="meal-rate-box"><input type="number" id="mealDinnerRate" min="0" step="100" inputmode="numeric" aria-label="저녁 단가"><span>원</span></span>
+          <span class="rate-meta">저녁 합계 <span class="num" id="dinnerTotal">—</span></span>
+        </label>
+        <label class="meal">
+          <span class="meal-rate-top"><b>회식 단가</b><span class="meal-rate-months" id="partyMonths">4개월</span></span>
+          <span class="meal-rate-box"><input type="number" id="mealPartyRate" min="0" step="10000" inputmode="numeric" aria-label="회식 단가"><span>원</span></span>
+          <span class="rate-meta">회식 합계 <span class="num" id="partyTotal">—</span></span>
+        </label>
+      </div>
+    </div>
+    <section class="grid">
+      <article class="panel">
+        <div class="meal-settings" id="mealSettings">
+          <div class="settings-head">
+            <h2>설정</h2>
+          </div>
+          <div class="dinner-head">
+            <div>
+              <b>저녁식사 포함 인력</b>
+            </div>
+            <div class="setting-actions">
+              <button type="button" class="mini-action" id="mealDinnerAll">전체</button>
+              <button type="button" class="mini-action" id="mealDinnerNone">해제</button>
+            </div>
+          </div>
+          <div class="dinner-role-list" id="mealDinnerRolesList"></div>
+        </div>
+        <h2 style="margin-top:22px">상태 표시</h2>
+        <div class="legend">
+          <span><i class="dot auto"></i> 근무일 자동 연동</span>
+          <span><i class="dot manual"></i> 수동 수정</span>
+          <span><i class="dot off"></i> 휴무</span>
+        </div>
+      </article>
+      <article class="panel">
+        <div class="cal-head">
+          <div class="cal-months" role="group" aria-label="월 선택" id="monthTabs"></div>
+          <div class="cal-count" aria-live="polite">이번 달 <b id="count">0</b>일</div>
+        </div>
+        <div class="dow" aria-hidden="true"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
+        <div class="cal" id="cal" role="grid" aria-label="근무 체크 달력"></div>
+      </article>
+    </section>
+  </main>
+
+  <div class="modal" id="trendModal" role="dialog" aria-modal="true" aria-labelledby="trendT">
+    <div class="modal-bg" data-close></div>
+    <div class="modal-card">
+      <div class="modal-head"><div><h2 id="trendT">월별 비용 추이</h2><p class="sub">단계 기간에 맞춰 집계된 월별 집행</p></div><button class="x" data-close aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="trend">
+        <div class="tmonth" style="--h:38%"><i></i><b>82.4M 원</b><span>7월</span></div>
+        <div class="tmonth" style="--h:56%"><i></i><b>121.8M 원</b><span>8월</span></div>
+        <div class="tmonth" style="--h:68%"><i></i><b>148.2M 원</b><span>9월</span></div>
+        <div class="tmonth" style="--h:40%"><i></i><b>86.2M 원</b><span>10월</span></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const YEAR=2026;
+const MONTHS=[{i:6,label:"7월"},{i:7,label:"8월"},{i:8,label:"9월"},{i:9,label:"10월"}];
+const DEFAULT_MEAL_SETTINGS={lunch:9000,dinner:13000,party:1000000,dinnerRoles:[]};
+let current=8;
+const overrides={};
+
+// ── 인건비 데이터 + 식대 설정 로드 ─────────────────────────
+const DEFAULT_ROLES=[
+  {name:'총괄 디렉터',   daily:420000, people:[{s:[6,1],e:[9,31]}]},
+  {name:'기획 팀장',     daily:320000, people:[{s:[6,8],e:[9,15]},{s:[6,20],e:[9,30]}]},
+  {name:'메인 기획자',   daily:240000, people:[{s:[6,15],e:[9,31]},{s:[6,15],e:[8,31]},{s:[7,1],e:[9,31]}]},
+  {name:'상담 컨설턴트', daily:180000, people:[{s:[7,1],e:[9,10]},{s:[7,1],e:[9,30]},{s:[6,20],e:[8,31]},{s:[7,8],e:[9,10]},{s:[7,1],e:[9,10]},{s:[6,15],e:[9,15]},{s:[7,1],e:[9,30]},{s:[7,8],e:[8,31]}]},
+];
+let laborRoles=[];
+let ms={...DEFAULT_MEAL_SETTINGS};
+function nonNegativeNumber(value,fallback){
+  if(value==null||value==='')return fallback;
+  const n=Number(value);
+  return Number.isFinite(n)?Math.max(0,n):fallback;
+}
+function normalizeMealSettings(s){
+  const hasParty=!!(s&&Object.prototype.hasOwnProperty.call(s,'party'));
+  let lunch=nonNegativeNumber(s&&s.lunch,DEFAULT_MEAL_SETTINGS.lunch);
+  let dinner=nonNegativeNumber(s&&s.dinner,DEFAULT_MEAL_SETTINGS.dinner);
+  if(!hasParty&&lunch===8000)lunch=DEFAULT_MEAL_SETTINGS.lunch;
+  if(!hasParty&&dinner===15000)dinner=DEFAULT_MEAL_SETTINGS.dinner;
+  const party=nonNegativeNumber(s&&s.party,DEFAULT_MEAL_SETTINGS.party);
+  const dinnerRoles=Array.isArray(s&&s.dinnerRoles)
+    ? s.dinnerRoles.map(Number).filter(n=>Number.isInteger(n)&&n>=0)
+    : [];
+  return {
+    lunch,
+    dinner,
+    party,
+    dinnerRoles:[...new Set(dinnerRoles)]
+  };
+}
+function parseMealSettings(s){return normalizeMealSettings(s);}
+function loadMealSettings(){
+  try{return normalizeMealSettings(JSON.parse(localStorage.getItem('ec-meal-settings')));}
+  catch(e){return normalizeMealSettings(null);}
+}
+function saveMealSettings(obj){
+  try{localStorage.setItem('ec-meal-settings',JSON.stringify(normalizeMealSettings(obj)));}
+  catch(e){}
+}
+(function loadData(){
+  try{const r=JSON.parse(localStorage.getItem('ec-roles'));laborRoles=Array.isArray(r)&&r.length>0?r:DEFAULT_ROLES;}catch(e){laborRoles=DEFAULT_ROLES;}
+  ms=loadMealSettings();
+})();
+
+// ── 근무 여부 판단 (labor.html 로직 복제) ─────────────────
+function isPersonOn(p,m,d){
+  const dt=new Date(YEAR,m,d),ps=new Date(YEAR,p.s[0],p.s[1]),pe=new Date(YEAR,p.e[0],p.e[1]);
+  if(dt<ps||dt>pe)return false;
+  const key=m+'-'+d;
+  if(p.ov&&key in p.ov)return p.ov[key];
+  const pat=(p.pat&&p.pat[m]!=null)?p.pat[m]:6,dow=dt.getDay();
+  if(pat===7)return true;if(pat===5)return dow>=1&&dow<=5;return dow!==3;
+}
+function countPeople(m,d,filterIdxs){
+  let n=0;
+  const filter=Array.isArray(filterIdxs)?filterIdxs:null;
+  laborRoles.forEach((r,ri)=>{
+    if(filter&&!filter.includes(ri))return;
+    r.people.forEach(p=>{if(isPersonOn(p,m,d))n++;});
+  });
+  return n;
+}
+function getPeopleByRole(m,d){
+  return laborRoles.map((r,ri)=>({name:r.name,cnt:r.people.filter(p=>isPersonOn(p,m,d)).length})).filter(x=>x.cnt>0);
+}
+function dayAutoOn(m,d){return countPeople(m,d,null)>0;}
+const fmtW=n=>n.toLocaleString('ko-KR')+'<span class="wunit"> 원</span>';
+
+// ── 총액 계산 ──────────────────────────────────────────────
+function calcGrandTotals(){
+  let lunch=0,dinner=0;
+  const party=ms.party*MONTHS.length;
+  MONTHS.forEach(mo=>{
+    const dim=new Date(YEAR,mo.i+1,0).getDate();
+    for(let d=1;d<=dim;d++){
+      const key=mo.i+'-'+d,on=key in overrides?overrides[key]:dayAutoOn(mo.i,d);
+      if(!on)continue;
+      lunch+=countPeople(mo.i,d,null)*ms.lunch;
+      if(ms.dinnerRoles&&ms.dinnerRoles.length>0){
+        dinner+=countPeople(mo.i,d,ms.dinnerRoles)*ms.dinner;
+      }
+    }
+  });
+  return{lunch,dinner,party,total:lunch+dinner+party};
+}
+function updateTotals(){
+  const t=calcGrandTotals();
+  document.getElementById('grandTotal').innerHTML=fmtW(t.total);
+  document.getElementById('lunchTotal').innerHTML=fmtW(t.lunch);
+  document.getElementById('dinnerTotal').innerHTML=fmtW(t.dinner);
+  document.getElementById('partyTotal').innerHTML=fmtW(t.party);
+  document.getElementById('partyMonths').textContent=MONTHS.length+'개월';
+}
+
+function dinnerRoleRow(r,i){
+  const selected=ms.dinnerRoles.includes(i)?' checked':'';
+  const head=Array.isArray(r.people)?r.people.length:0;
+  return '<label class="dinner-role">'+
+    '<input type="checkbox" data-ri="'+i+'"'+selected+'>'+
+    '<span class="role-copy"><b>'+r.name+'</b><small>'+head+'명 · 근무일 기준으로 저녁비 반영</small></span>'+
+  '</label>';
+}
+function renderMealSettings(){
+  const lunch=document.getElementById('mealLunchRate');
+  const dinner=document.getElementById('mealDinnerRate');
+  const party=document.getElementById('mealPartyRate');
+  const list=document.getElementById('mealDinnerRolesList');
+  if(!lunch||!dinner||!party||!list)return;
+  lunch.value=ms.lunch;
+  dinner.value=ms.dinner;
+  party.value=ms.party;
+  list.innerHTML=laborRoles.map(dinnerRoleRow).join('');
+}
+function readMealSettingsForm(){
+  const checked=[...document.getElementById('mealDinnerRolesList').querySelectorAll('input:checked')].map(c=>+c.dataset.ri);
+  return normalizeMealSettings({
+    lunch:document.getElementById('mealLunchRate').value,
+    dinner:document.getElementById('mealDinnerRate').value,
+    party:document.getElementById('mealPartyRate').value,
+    dinnerRoles:checked
+  });
+}
+function applyInlineMealSettings(){
+  ms=readMealSettingsForm();
+  saveMealSettings(ms);
+  render();
+}
+function focusMealSettings(){
+  const target=document.getElementById('mealSettings');
+  if(!target)return;
+  const top=target.getBoundingClientRect().top+window.scrollY-88;
+  window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
+  target.classList.remove('focused');
+  void target.offsetWidth;
+  target.classList.add('focused');
+  const first=target.querySelector('input,button');
+  if(first)setTimeout(()=>first.focus(),180);
+}
+
+// ── 달력 렌더 ──────────────────────────────────────────────
+const tabs=document.getElementById("monthTabs"),cal=document.getElementById("cal"),countEl=document.getElementById("count");
+MONTHS.forEach(mo=>{const b=document.createElement("button");b.textContent=mo.label;b.dataset.m=mo.i;b.setAttribute("aria-pressed",mo.i===current);b.onclick=()=>{current=mo.i;sync();render();};tabs.appendChild(b);});
+function sync(){[...tabs.children].forEach(b=>b.setAttribute("aria-pressed",+b.dataset.m===current));}
+function render(){
+  cal.innerHTML="";
+  const first=new Date(YEAR,current,1).getDay(),dim=new Date(YEAR,current+1,0).getDate();
+  for(let i=0;i<first;i++){const e=document.createElement("div");e.className="cell blank";e.setAttribute("aria-hidden","true");cal.appendChild(e);}
+  let worked=0;
+  for(let d=1;d<=dim;d++){
+    const dow=new Date(YEAR,current,d).getDay(),key=current+"-"+d;
+    const autoOn=dayAutoOn(current,d);
+    const lunchCnt=countPeople(current,d,null);
+    const on=key in overrides?overrides[key]:autoOn,manual=key in overrides&&overrides[key]!==autoOn;
+    if(on)worked++;
+    const c=document.createElement("button");
+    c.className="cell"+(dow===0?" sun":"")+(dow===6?" sat":"")+(dow===0||dow===6?" weekend":"")+(on?(manual?" manual":" checked"):"");
+    c.setAttribute("role","gridcell");c.setAttribute("aria-pressed",on);
+    c.setAttribute("aria-label",MONTHS.find(m=>m.i===current).label+" "+d+"일 "+(on?"식대":"제외"));
+    const badge=lunchCnt>0?'<span class="people-badge">'+lunchCnt+'명</span>':'';
+    c.innerHTML='<span class="d">'+d+'</span>'+badge+'<span class="mark">●</span>';
+    c.onclick=()=>{overrides[key]=!on;render();};
+    if(lunchCnt>0){
+      const bd=getPeopleByRole(current,d);
+      const tt=document.getElementById('dayTooltip');
+      c.addEventListener('mouseenter',e=>{tt.innerHTML=bd.map(x=>x.name+' × '+x.cnt).join('<br>');tt.style.left=(e.clientX+14)+'px';tt.style.top=(e.clientY+14)+'px';tt.classList.add('show');});
+      c.addEventListener('mousemove',e=>{tt.style.left=(e.clientX+14)+'px';tt.style.top=(e.clientY+14)+'px';});
+      c.addEventListener('mouseleave',()=>tt.classList.remove('show'));
+    }
+    cal.appendChild(c);
+  }
+  countEl.textContent=worked;
+  updateTotals();
+}
+function refreshFromStorage(){
+  try{const r=JSON.parse(localStorage.getItem('ec-roles'));laborRoles=Array.isArray(r)&&r.length>0?r:DEFAULT_ROLES;}catch(e){}
+  ms=loadMealSettings();
+  renderMealSettings();
+}
+document.getElementById('mealDinnerRolesList').addEventListener('change',applyInlineMealSettings);
+document.getElementById('mealLunchRate').addEventListener('input',applyInlineMealSettings);
+document.getElementById('mealDinnerRate').addEventListener('input',applyInlineMealSettings);
+document.getElementById('mealPartyRate').addEventListener('input',applyInlineMealSettings);
+document.getElementById('mealDinnerAll').addEventListener('click',()=>{
+  document.querySelectorAll('#mealDinnerRolesList input').forEach(input=>{input.checked=true;});
+  applyInlineMealSettings();
+});
+document.getElementById('mealDinnerNone').addEventListener('click',()=>{
+  document.querySelectorAll('#mealDinnerRolesList input').forEach(input=>{input.checked=false;});
+  applyInlineMealSettings();
+});
+sync();render();renderMealSettings();
+if(location.hash==='#mealSettings')requestAnimationFrame(focusMealSettings);
+window.addEventListener('hashchange',()=>{if(location.hash==='#mealSettings')focusMealSettings();});
+window.addEventListener('pageshow',()=>{refreshFromStorage();render();});
+window.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){refreshFromStorage();render();}});
+window.addEventListener('storage',e=>{if(e.key==='ec-roles'||e.key==='ec-meal-settings'){refreshFromStorage();render();}});
+</script>
+<div id="dayTooltip" class="day-tooltip"></div>
+
+<script>
+/* 공통 상단 도구 */
+const gearBtn=document.getElementById('gearBtn'),gearMenu=document.getElementById('gearMenu');
+function closeMenu(){gearMenu.classList.remove('open');gearBtn.setAttribute('aria-expanded','false');}
+gearBtn.addEventListener('click',e=>{e.stopPropagation();const o=gearMenu.classList.toggle('open');gearBtn.setAttribute('aria-expanded',o);});
+document.addEventListener('click',e=>{if(!gearMenu.contains(e.target)&&!gearBtn.contains(e.target))closeMenu();});
+let lastFocus=null;
+function openModal(id){const m=document.getElementById(id);if(!m)return;lastFocus=document.activeElement;m.classList.add('open');const x=m.querySelector('.x');if(x)x.focus();}
+function closeModal(m){m.classList.remove('open');if(lastFocus&&lastFocus.focus)lastFocus.focus();}
+document.querySelectorAll('[data-modal]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();closeMenu();openModal(b.dataset.modal);}));
+gearMenu.querySelectorAll('a[href^="#"]').forEach(a=>a.addEventListener('click',()=>setTimeout(closeMenu,0)));
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target.closest('[data-close]'))closeModal(m);}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();document.querySelectorAll('.modal.open').forEach(closeModal);}});
+</script>
+<script src="period-modal.js"></script>
+<script>
+  if(window.self!==window.top){
+    document.body.classList.add('in-iframe');
+    const requestParentPanel = (href) => {
+      try{
+        if(window.parent && typeof window.parent.ECParentOpenPanel === 'function'){
+          window.parent.ECParentOpenPanel(href);
+          return true;
+        }
+      }catch(e){}
+      return false;
+    };
+    document.querySelectorAll('a[href]').forEach(link => {
+      const href = link.getAttribute('href');
+      if(!href || href.startsWith('#') || !/\.html($|#)/.test(href)) return;
+      link.addEventListener('click', e => {
+        if(requestParentPanel(href)) e.preventDefault();
+      });
+    });
+  }
+</script>
+</body>
+</html>

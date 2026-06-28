@@ -1,0 +1,812 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@latest/dist/web/static/pretendard.css">
+<title>Easy Commission - 인건비</title>
+<style>
+:root{
+  --bg:oklch(97.5% .006 240);--surface:#fff;--surface-2:oklch(97% .008 238);
+  --fg:oklch(27% .03 250);--muted:oklch(55% .02 250);--border:oklch(92% .009 238);
+  --accent:oklch(57% .13 222);--teal:oklch(63% .10 178);--violet:oklch(60% .12 300);
+  --amber:oklch(70% .12 70);--navy:oklch(32% .045 256);--slate:oklch(50% .04 256);
+  --ink:oklch(24% .03 256);--sun:oklch(60% .15 25);--sat:oklch(58% .12 250);
+  --shadow:0 1px 2px oklch(40% .03 250/.04),0 10px 30px oklch(40% .03 250/.07);
+  --shadow-lg:0 4px 12px oklch(40% .03 250/.08),0 30px 60px oklch(40% .03 250/.16);
+  --font:"Pretendard",-apple-system,BlinkMacSystemFont,sans-serif;
+  --font-d:"Pretendard",-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:"Pretendard",monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;min-height:100vh}
+a{color:inherit;text-decoration:none}button{font-family:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+body.in-iframe{background:var(--surface)}
+body.in-iframe .topbar{background:var(--surface);padding:8px 16px;justify-content:flex-end}
+body.in-iframe .left{display:none!important}
+body.in-iframe main{padding-top:10px}
+.topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 24px;background:oklch(97.5% .006 240/.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.left{display:flex;align-items:center;gap:12px;min-width:0}
+.back{width:40px;height:40px;flex:none;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--fg);cursor:pointer;display:grid;place-items:center;transition:background .15s,transform .05s}
+.back:hover{background:var(--surface-2)}.back:active{transform:translateY(1px)}.back svg{width:19px;height:19px}
+.minicards{display:flex;gap:8px;overflow-x:auto;padding:2px;scrollbar-width:thin}
+.mini{flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .05s}
+.mini:hover{border-color:oklch(80% .03 240);box-shadow:var(--shadow)}.mini:active{transform:translateY(1px)}
+.mini.on{border-color:var(--accent);box-shadow:0 0 0 2px oklch(57% .13 222/.14)}
+.mini .md{width:9px;height:9px;border-radius:3px;flex:none}
+.mini .mn{font-weight:600;font-size:13px;white-space:nowrap}
+.mini .mv{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.mini[data-c=labor] .md{background:var(--accent)}.mini[data-c=meal] .md{background:var(--teal)}.mini[data-c=ad] .md{background:var(--violet)}.mini[data-c=op] .md{background:var(--amber)}.mini[data-c=etc] .md{background:var(--slate)}
+.tools{display:flex;align-items:center;gap:8px;flex:none}
+.tbtn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font-weight:600;font-size:13.5px;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .05s}
+.tbtn:hover{border-color:oklch(80% .03 240);box-shadow:var(--shadow)}.tbtn:active{transform:translateY(1px)}
+.tbtn svg{width:17px;height:17px;color:var(--muted)}
+.icononly{width:40px;padding:0;justify-content:center}
+.gear-wrap{position:relative}
+.menu{position:absolute;right:0;top:48px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-lg);padding:6px;min-width:240px;display:none;z-index:60}
+.menu.open{display:block;animation:pop .14s ease}
+@keyframes pop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.menu a,.menu button.mitem{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:10px;font-weight:550;font-size:14px;transition:background .13s;width:100%;text-align:left;border:0;background:transparent;color:var(--fg);cursor:pointer}
+.menu a:hover,.menu button.mitem:hover{background:var(--surface-2)}.menu a svg,.menu button.mitem svg{width:17px;height:17px;color:var(--muted)}
+.menu .sep{height:1px;background:var(--border);margin:5px 8px}
+.menu .proj{padding:9px 12px 7px;color:var(--muted);font-size:12px;line-height:1.5}.menu .proj b{display:block;color:var(--fg);font-weight:650}
+.menu-sec-hd{padding:5px 12px 2px;font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--muted);text-transform:uppercase;margin-top:3px}.menu a.passive{pointer-events:none;opacity:.55;cursor:default}
+/* rate + meal settings modal */
+.rate-table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}
+.rate-table th{text-align:left;padding:8px 10px;color:var(--muted);font-size:12px;font-weight:650;border-bottom:1px solid var(--border)}
+.rate-table td{padding:8px 10px;border-bottom:1px solid var(--border)}
+.rate-input{font-family:var(--mono);font-size:14px;border:1px solid var(--border);border-radius:8px;padding:6px 9px;width:140px;text-align:right;color:var(--fg);background:var(--surface);transition:border-color .14s}
+.rate-input:focus{outline:none;border-color:var(--accent)}
+.ms-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)}
+.ms-row:last-child{border-bottom:0}
+.ms-row label{font-size:14px;font-weight:600}
+.ms-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.ms-check-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.ms-check{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:11px;cursor:pointer;transition:border-color .14s,background .14s}
+.ms-check:hover{border-color:var(--accent);background:color-mix(in oklch,var(--accent) 4%,white)}
+.ms-check input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+.ms-check span{font-size:14px;font-weight:550}
+.modal-save-row{position:sticky;bottom:0;background:var(--surface);padding:12px 0 2px;border-top:1px solid var(--border);margin-top:12px;display:flex;justify-content:flex-end}
+/* drag-and-drop */
+.job[draggable=true]{cursor:grab}.job[draggable=true]:active{cursor:grabbing}
+.drag-grip{opacity:0;color:var(--muted);flex:none;cursor:grab;padding:0 4px 0 0;border-radius:6px;transition:opacity .13s;pointer-events:none;align-items:center;display:inline-flex;margin-top:2px}
+.job:hover .drag-grip{opacity:.7;pointer-events:auto}.drag-grip:hover{opacity:1!important}
+.drag-grip svg{pointer-events:none}
+.job.dragging{opacity:.35;transform:scale(.97)!important;box-shadow:none!important;outline:2px dashed var(--border)}
+.job.drag-over{outline:2px solid var(--accent);outline-offset:2px;background:color-mix(in oklch,var(--accent) 5%,white)}
+.rate-drag-handle{cursor:grab;text-align:center;color:var(--muted);padding:6px 4px!important;width:28px}
+.rate-drag-handle:hover{color:var(--fg)}.rate-drag-handle svg{pointer-events:none}
+.rate-table tr.dragging td{opacity:.35}
+.rate-table tr.drag-over td{background:color-mix(in oklch,var(--accent) 8%,white)}
+.btn-save{height:38px;padding:0 18px;border-radius:11px;border:0;background:var(--accent);color:#fff;font-weight:650;font-size:14px;cursor:pointer;transition:background .14s,transform .08s,box-shadow .14s}
+.btn-save:hover{background:oklch(52% .14 218);box-shadow:0 4px 12px oklch(58% .12 218/.3)}
+.btn-save:active{transform:translateY(1px)}
+main{flex:1;display:flex;flex-direction:column;min-height:0;padding:20px 5vw 24px;width:100%;margin:0 auto}
+.lab-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.lab-head .k{color:var(--accent);font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.lab-head h1{font-family:var(--font-d);font-size:30px;font-weight:640;letter-spacing:-.02em;margin:4px 0 0}
+.lab-total{font-family:var(--font-d);font-size:34px;font-weight:680;letter-spacing:-.02em;color:var(--navy);font-variant-numeric:tabular-nums}
+.lab-total small{font-size:13px;color:var(--muted);font-weight:550;margin-left:8px;font-family:var(--font)}
+.lab-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,1fr);gap:14px;grid-auto-rows:200px}
+.job{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);padding:14px;display:flex;flex-direction:column;transition:transform .18s,box-shadow .18s;min-height:0}
+.job:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+.job-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.job-top-left{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.jname{font-weight:650;font-size:clamp(15px,1.9vh,17px);line-height:1.25;letter-spacing:-.01em}
+.plus{width:34px;height:34px;flex:none;border:0;border-radius:11px;background:color-mix(in oklch,var(--accent) 14%,white);color:var(--accent);cursor:pointer;display:grid;place-items:center;transition:background .15s,transform .1s,box-shadow .15s}
+.plus:hover{background:var(--accent);color:#fff;box-shadow:0 6px 16px oklch(57% .13 222/.32)}
+.plus:active{transform:scale(.92)}.plus svg{width:18px;height:18px}
+.hc{display:flex;gap:6px;flex:none}
+.minus{width:34px;height:34px;flex:none;border:0;border-radius:11px;background:color-mix(in oklch,var(--sun) 13%,white);color:var(--sun);cursor:pointer;display:grid;place-items:center;transition:background .15s,transform .1s,box-shadow .15s}
+.minus:hover{background:var(--sun);color:#fff;box-shadow:0 6px 16px oklch(60% .15 25/.3)}
+.minus:active{transform:scale(.92)}.minus svg{width:18px;height:18px}
+.minus:disabled{opacity:.4;cursor:not-allowed;background:var(--surface-2);color:var(--muted);box-shadow:none}
+.job-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:0}
+.wunit{font-size:calc(1em - 3px)}.jamt{font-family:var(--font-d);font-weight:700;font-size:clamp(17px,3.9vh,31px);letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
+.jdays{font-size:clamp(11px,1.6vh,13px);color:var(--muted);font-weight:550}
+.jdays b{color:var(--accent);font-weight:680}
+.job-detail{width:34px;height:34px;flex:none;border:0;border-radius:11px;background:color-mix(in oklch,var(--slate) 13%,white);color:var(--slate);cursor:pointer;display:grid;place-items:center;transition:background .15s,transform .1s,box-shadow .15s}
+.job-detail:hover{background:var(--slate);color:#fff;box-shadow:0 6px 16px oklch(50% .06 256/.28)}
+.job-detail:active{transform:scale(.92)}.job-detail svg{width:16px;height:16px}
+.jname:focus{outline:none;background:var(--surface-2);border-radius:6px;padding:2px 5px;margin:-2px -5px;cursor:text}
+.ctx-menu{position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:5px;min-width:130px}
+.ctx-menu button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:transparent;color:var(--fg);cursor:pointer;padding:8px 12px;border-radius:7px;font-size:13.5px;font-weight:550;text-align:left}
+.ctx-menu button:hover{background:oklch(95% .02 15);color:oklch(44% .18 15)}
+.extra-dd{position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:5px;display:flex;flex-direction:column;gap:2px;min-width:90px}
+.extra-dd button{border:0;background:transparent;color:var(--fg);cursor:pointer;padding:8px 14px;border-radius:8px;font-size:14px;font-weight:550;text-align:left;transition:background .12s}
+.extra-dd button:hover{background:var(--surface-2)}
+.extra-dd button.on{background:color-mix(in oklch,var(--accent) 12%,white);color:var(--accent);font-weight:700}
+.bk-card.add.has-override{border-color:var(--violet);border-style:dashed}
+.job.add{border:1.5px dashed oklch(82% .02 240);background:transparent;box-shadow:none;align-items:center;justify-content:center;gap:10px;cursor:pointer;color:var(--muted)}
+.job.add:hover{border-color:var(--accent);color:var(--accent);background:color-mix(in oklch,var(--accent) 5%,white);transform:translateY(-3px);box-shadow:var(--shadow)}
+.job.add .bp{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:color-mix(in oklch,var(--accent) 12%,white);color:var(--accent);transition:background .15s}
+.job.add:hover .bp{background:var(--accent);color:#fff}
+.job.add .bp svg{width:24px;height:24px}.job.add span{font-weight:600;font-size:13px}
+.modal{position:fixed;inset:0;display:none;place-items:center;z-index:80;padding:20px}
+.modal.open{display:grid}
+.modal-bg{position:fixed;inset:0;background:oklch(28% .03 256/.40);backdrop-filter:blur(4px)}
+.modal-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:22px;box-shadow:var(--shadow-lg);width:min(760px,96vw);max-height:90vh;overflow:auto;padding:22px 24px 24px;animation:rise .2s ease}
+@keyframes rise{from{opacity:0;transform:translateY(12px) scale(.99)}to{opacity:1;transform:none}}
+.modal-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:12px}
+.modal-head h2{margin:0;font-size:21px;font-weight:650}
+.modal-head .sub{color:var(--muted);font-size:15px;margin:3px 0 0}
+.x{width:34px;height:34px;flex:none;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;display:grid;place-items:center}
+.x:hover{background:var(--surface-2);color:var(--fg)}.x svg{width:18px;height:18px}
+.rng-row{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 6px}
+.rng-row .pill{display:flex;flex-direction:column;gap:2px;border:1px solid var(--border);border-radius:12px;padding:9px 13px;background:var(--surface-2)}
+.rng-row .pill span{font-size:11px;color:var(--muted);font-weight:600}
+.rng-row .pill b{font-family:var(--mono);font-size:15px;color:var(--navy)}
+.months{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:14px}
+.mcard{border:1px solid var(--border);border-radius:14px;padding:12px;background:var(--surface)}
+.mcard.disabled{opacity:.32;pointer-events:none;filter:grayscale(.2)}
+.mc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.mcard h3{margin:0;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.mc-mon{font-size:16px;font-weight:680;color:var(--navy)}
+.mc-mstats{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--muted)}
+.mc-mstats b{color:var(--accent)}
+.mcard .mamt{font-family:var(--mono);font-size:14px;font-weight:650}
+.mcard .mdy{font-size:11px;color:var(--muted);margin-top:2px;font-family:var(--mono)}
+.pat-btns{display:inline-flex;flex:none;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:2px;gap:2px}
+.pat{border:0;background:transparent;color:var(--muted);font-family:var(--mono);font-weight:650;font-size:13px;padding:3px 7px;border-radius:7px;cursor:pointer;transition:background .14s,color .14s}
+.pat:hover{color:var(--fg)}
+.pat.on{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px oklch(40% .03 250/.14)}
+.cal-strip{display:flex;gap:1.5px;margin-top:5px}
+.cday{flex:1;min-width:0;height:20px;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;border-radius:3px;color:var(--muted);background:var(--surface-2);cursor:pointer;font-family:var(--mono)}
+.cday.on{background:color-mix(in oklch,var(--teal) 20%,white);color:var(--navy);box-shadow:inset 0 0 0 1px var(--teal)}
+.cday.sat{color:var(--sat)}.cday.on.sat{color:var(--sat)}
+.cday.sun{color:var(--sun)}.cday.on.sun{color:var(--sun)}
+.cday:not(.out):hover{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.cday.out{opacity:.22;cursor:default;pointer-events:none}
+.cday.ov{position:relative}
+.cday.ov::after{content:"";position:absolute;top:1px;right:1px;width:3px;height:3px;border-radius:50%;background:var(--accent)}
+.period-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 2px 2px}
+.period-row .pr-cap{font-size:13px;font-weight:680;color:var(--navy)}
+.period-inputs{display:flex;gap:8px;flex-wrap:wrap}
+.period-inputs label{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:650;color:var(--muted)}
+.period-inputs input[type=date]{font-family:var(--mono);font-size:13px;border:1px solid var(--border);border-radius:9px;padding:6px 9px;background:var(--surface);color:var(--fg);cursor:pointer}
+.period-inputs input[type=date]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px oklch(57% .13 222/.14)}
+.person{border:1px solid var(--border);border-radius:16px;padding:16px;margin-top:14px;background:var(--surface)}
+.person:first-child{margin-top:10px}
+.person-toggle{width:28px;height:28px;flex:none;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;display:grid;place-items:center;padding:0;border-radius:8px;transition:color .14s,background .14s;flex-shrink:0}
+.person-toggle:hover{color:var(--fg);background:var(--surface-2)}
+.person-toggle svg{width:14px;height:14px}
+.person-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:2px}
+.person-head .pn{font-weight:680;font-size:16px;color:var(--navy);display:flex;align-items:center}
+.person-head .pn .num{display:inline-grid;place-items:center;width:21px;height:21px;border-radius:7px;background:color-mix(in oklch,var(--accent) 15%,white);color:var(--accent);font-size:13px;font-weight:700;margin-right:8px;font-family:var(--mono)}
+.person-head .pmeta{font-family:var(--mono);font-size:14.5px;color:var(--muted);white-space:nowrap}
+.person-head .pmeta b{color:var(--accent)}
+.prange{position:relative;height:38px;border-radius:11px;background:var(--surface-2);touch-action:none;margin:10px 8px 0}
+.pr-fill{position:absolute;top:6px;bottom:6px;border-radius:8px;background:linear-gradient(90deg,color-mix(in oklch,var(--accent) 72%,white),var(--accent));box-shadow:inset 0 0 0 1px oklch(100% 0 0/.22);display:flex;align-items:center;justify-content:space-between;padding:0 10px;overflow:hidden;pointer-events:none}
+.pr-fill .d0,.pr-fill .d1{font-family:var(--mono);font-size:13px;font-weight:700;color:#fff;white-space:nowrap;text-shadow:0 1px 3px oklch(30% .04 250/.4);pointer-events:none;flex-shrink:0}
+.pr-handle{position:absolute;top:50%;width:18px;height:52px;transform:translate(-50%,-50%);border:0;background:transparent;cursor:ew-resize;z-index:5;display:grid;place-items:center;touch-action:none}
+.pr-handle::before{content:"";width:6px;height:100%;border-radius:6px;background:var(--surface);box-shadow:0 0 0 1px var(--border),0 4px 10px oklch(40% .03 250/.18)}
+.pr-handle:hover::before,.pr-handle.drag::before{box-shadow:0 0 0 2px var(--accent),0 6px 14px oklch(40% .03 250/.24)}
+.person .months{margin-top:10px;grid-template-columns:1fr}
+.track{position:relative;height:48px;border-radius:12px;background:var(--surface-2);margin:18px 2px;touch-action:none}
+.seg{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;padding:0 11px;border-radius:11px;color:#fff;overflow:hidden;box-shadow:inset 0 0 0 1px oklch(100% 0 0/.18)}
+.seg-pre{background:var(--teal)}.seg-main{background:var(--accent)}.seg-add{background:var(--violet)}.seg-post{background:var(--slate)}
+.seg-l{font-size:12px;font-weight:700}.seg-r{font-size:10.5px;opacity:.92;font-family:var(--mono);white-space:nowrap}
+.handle{position:absolute;top:50%;width:20px;height:66px;transform:translate(-50%,-50%);border:0;background:transparent;cursor:ew-resize;z-index:5;display:grid;place-items:center;touch-action:none}
+.handle::before{content:"";width:6px;height:100%;border-radius:6px;background:var(--surface);box-shadow:0 0 0 1px var(--border),0 4px 10px oklch(40% .03 250/.18)}
+.handle:hover::before,.handle.drag::before{box-shadow:0 0 0 2px var(--accent),0 6px 14px oklch(40% .03 250/.22)}
+.stage-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stage{position:relative;text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:14px;padding:12px 13px;cursor:pointer}
+.stage.sel{border-color:var(--accent);box-shadow:0 0 0 3px oklch(57% .13 222/.14)}
+.stage .dot{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:7px}
+.stage[data-k=pre] .dot{background:var(--teal)}.stage[data-k=main] .dot{background:var(--accent)}.stage[data-k=add] .dot{background:var(--violet)}.stage[data-k=post] .dot{background:var(--slate)}
+.stage .lab{font-weight:680;font-size:14px}.stage .ko{color:var(--muted);font-size:11px}
+.stage .rng{margin-top:8px;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--navy)}
+.stage.off{opacity:.55}
+.switch{position:absolute;top:11px;right:11px;display:inline-flex;cursor:pointer}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.switch .sl{width:30px;height:18px;border-radius:999px;background:var(--border);transition:background .16s;position:relative}
+.switch .sl::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px oklch(40% .03 250/.3);transition:left .16s}
+.switch input:checked+.sl{background:var(--violet)}.switch input:checked+.sl::after{left:14px}
+.modal-hint{color:var(--muted);font-size:14.5px;margin:14px 0 0;line-height:1.6}
+.extra-sec{margin-top:16px;border-top:1px solid var(--border);padding-top:14px}
+.extra-cap{font-size:13px;font-weight:680;color:var(--navy);margin-bottom:10px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.extra-cap span{font-size:11px;font-weight:600;color:var(--muted)}
+#extraRows{display:grid;gap:10px}
+.ebar{border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:var(--surface-2)}
+.ebar-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ebar .en{font-weight:650;font-size:13.5px;color:var(--fg)}
+.estep{display:inline-flex;align-items:center;gap:8px}
+.estep button{width:28px;height:28px;border:1px solid var(--border);background:var(--surface);color:var(--fg);border-radius:8px;font-size:17px;font-weight:700;line-height:1;cursor:pointer;display:grid;place-items:center;transition:background .14s,border-color .14s,color .14s}
+.estep button:hover{border-color:var(--accent);color:var(--accent)}
+.estep button:active{transform:translateY(1px)}
+.estep button:disabled{opacity:.4;cursor:not-allowed;border-color:var(--border);color:var(--muted)}
+.estep .eval{font-family:var(--mono);font-weight:700;font-size:14px;min-width:44px;text-align:center;color:var(--navy)}
+.ebar-track{height:6px;border-radius:6px;background:var(--surface);margin-top:9px;overflow:hidden;box-shadow:inset 0 0 0 1px var(--border)}
+.ebar-track i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--violet),var(--accent));transition:width .18s}
+/* Person card-only row */
+.person-card-row{display:flex;align-items:center;gap:14px}
+.p-num{display:inline-grid;place-items:center;width:28px;height:28px;flex-shrink:0;border-radius:9px;background:color-mix(in oklch,var(--accent) 15%,white);color:var(--accent);font-size:14px;font-weight:700;font-family:var(--mono)}
+.person-card-row .pbreak{flex:1;display:flex;flex-direction:column;align-items:flex-start;text-align:left}
+/* Big cards */
+.bk-cards{display:flex;gap:8px;align-items:stretch;flex-wrap:nowrap;width:100%}
+.bk-card{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px solid var(--border);border-radius:16px;padding:22px 10px;background:var(--surface-2);gap:8px;min-height:200px;transition:border-color .15s,box-shadow .15s}
+.bk-card-lbl{font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap;letter-spacing:.04em;text-transform:uppercase}
+.bk-card-days{font-family:var(--mono);font-size:30px;font-weight:800;color:var(--navy);letter-spacing:-.03em;line-height:1}
+.bk-card-amt{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--slate)}
+.bk-card.base{cursor:pointer}
+.bk-card.base:hover{border-color:var(--accent);box-shadow:0 0 0 2px oklch(57% .13 222/.12)}
+.bk-card.add .bk-card-days{color:var(--violet);font-size:24px}
+.bk-card.add .bk-card-amt{color:var(--violet)}
+.bk-card.inactive{opacity:.25;pointer-events:none}
+.bk-card.tot{background:color-mix(in oklch,var(--accent) 9%,white);border-color:color-mix(in oklch,var(--accent) 30%,white)}
+.bk-card.tot .bk-card-lbl{color:var(--accent);font-weight:700}
+.bk-card.tot .bk-card-days{font-size:34px;font-weight:800;color:var(--navy)}
+.bk-card.tot .bk-card-amt{font-size:14px;font-weight:800;color:var(--accent)}
+/* Role modal title row */
+.role-title-row{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.role-stats{font-size:15px;color:var(--muted);font-weight:550}
+/* Person detail modal inner */
+.person-detail-inner{padding:6px 0}
+.person-detail-inner .prange{margin-bottom:14px}
+.person-detail-inner .months{grid-template-columns:1fr}
+@media(max-width:720px){.pbreak{align-items:flex-start;text-align:left;margin-top:8px}.bk-segs{justify-content:flex-start}}
+.trend{height:230px;display:flex;align-items:end;gap:18px;padding:22px 6px 0}
+.tmonth{flex:1;display:grid;gap:8px;align-items:end;color:var(--muted);font-size:13px;text-align:center}
+.tmonth i{display:block;height:var(--h);min-height:34px;background:linear-gradient(180deg,var(--accent),var(--teal));border-radius:12px 12px 5px 5px}
+.tmonth b{font-weight:600;color:var(--fg)}
+@media(max-width:1000px){.lab-grid{grid-template-columns:repeat(3,1fr)}.months{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){.lab-grid{grid-template-columns:repeat(2,1fr);grid-auto-rows:185px!important}.tbtn span{display:none}.tbtn{width:40px;padding:0;justify-content:center}.stage-btns{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.lab-grid{grid-template-columns:1fr!important}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="left">
+      <a class="back" href="index.html" aria-label="뒤로 가기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></a>
+      <nav class="minicards" aria-label="비용 카테고리">
+        <a class="mini on" data-c="labor" href="labor.html"><span class="md"></span><span class="mn">인건비</span><span class="mv" id="navLaborAmt">—</span></a>
+        <a class="mini" data-c="meal" href="meal.html"><span class="md"></span><span class="mn">식대</span><span class="mv">32.8M 원</span></a>
+        <a class="mini" data-c="ad" href="advertising.html"><span class="md"></span><span class="mn">광고비</span><span class="mv">96.5M 원</span></a>
+        <a class="mini" data-c="op" href="operating.html"><span class="md"></span><span class="mn">운영비</span><span class="mv">71.9M 원</span></a>
+        <a class="mini" data-c="etc" href="miscellaneous.html"><span class="md"></span><span class="mn">기타비</span><span class="mv">21.9M 원</span></a>
+      </nav>
+    </div>
+    <div class="tools">
+      <button class="tbtn" data-modal="stageModal" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h16M4 8a2 2 0 1 1 4 0 2 2 0 0 1-4 0M4 16h16M16 16a2 2 0 1 1 4 0 2 2 0 0 1-4 0"/></svg><span>분양 기간</span></button>
+      <button class="tbtn" data-modal="trendModal" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>월별 비용</span></button>
+      <div class="gear-wrap">
+        <button class="tbtn icononly" id="gearBtn" aria-haspopup="true" aria-expanded="false" aria-label="설정 메뉴"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.2.61.78 1.05 1.42 1.09H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <div class="menu" id="gearMenu" role="menu" aria-label="설정">
+          <div class="proj"><b>강남 리버파크 분양 제안</b>2026.07.01 - 2026.10.31 · 김서연 PM</div>
+          <div class="sep"></div>
+          <div class="menu-sec-hd">프로젝트</div>
+          <a role="menuitem" href="#" data-modal="stageModal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>일정표</a>
+          <button class="mitem" role="menuitem" id="menuRateBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg>단가표</button>
+          <div class="sep"></div>
+          <div class="menu-sec-hd">카드 설정</div>
+          <button class="mitem" role="menuitem" id="menuRateBtn2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>인건비</button>
+          <a role="menuitem" class="passive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M19 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>광고비</a>
+          <a role="menuitem" class="passive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9"/></svg>운영비</a>
+          <a role="menuitem" class="passive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>기타</a>
+          <div class="sep"></div>
+          <a role="menuitem" href="settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>세부사항</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="lab-head">
+      <div><div class="k">직원 기반 비용</div><h1>인건비</h1></div>
+      <div class="lab-total" id="labTotal"><span id="labTotalNum">—</span><small id="labCount"></small></div>
+    </div>
+    <div class="lab-grid" id="grid" role="list" aria-label="직무 카드"></div>
+  </main>
+
+  <!-- 직무 상세 모달 -->
+  <div class="modal" id="roleModal" role="dialog" aria-modal="true" aria-labelledby="roleT">
+    <div class="modal-bg"></div>
+    <div class="modal-card" style="width:70vw;max-width:70vw;height:80vh;max-height:80vh">
+      <div class="modal-head"><div class="role-title-row"><h2 id="roleT">직무 상세</h2><span class="role-stats" id="roleSub"></span></div><button class="x" data-close aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div id="roleBody"></div>
+    </div>
+  </div>
+
+  <!-- 인원 상세 모달 -->
+  <div class="modal" id="personDetailModal" role="dialog" aria-modal="true" aria-labelledby="personDetailT">
+    <div class="modal-bg" data-close></div>
+    <div class="modal-card" style="width:70vw;max-width:70vw;max-height:88vh">
+      <div class="modal-head"><div><h2 id="personDetailT">인원 상세</h2><p class="sub" id="personDetailSub"></p></div><button class="x" data-close aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div id="personDetailBody"></div>
+    </div>
+  </div>
+
+  <!-- 단가표 모달 -->
+  <div class="modal" id="rateModal" role="dialog" aria-modal="true" aria-labelledby="rateT">
+    <div class="modal-bg" data-close></div>
+    <div class="modal-card" style="width:min(520px,90vw);max-height:80vh;overflow:auto">
+      <div class="modal-head"><div><h2 id="rateT">단가표</h2><p class="sub" id="rateSub">직무별 일일 단가</p></div><button class="x" data-close aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <table class="rate-table"><thead><tr><th style="width:28px"></th><th>직무</th><th>일일 단가</th><th>소계</th></tr></thead><tbody id="rateTableBody"></tbody></table>
+      <div class="modal-save-row"><button class="btn-save" id="rateModalSave">저장</button></div>
+    </div>
+  </div>
+
+  <!-- 식대 설정 모달 -->
+  <div class="modal" id="mealSettingsModal" role="dialog" aria-modal="true" aria-labelledby="mealSetT">
+    <div class="modal-bg" data-close></div>
+    <div class="modal-card" style="width:min(480px,90vw);max-height:80vh;overflow:auto">
+      <div class="modal-head"><div><h2 id="mealSetT">식대 설정</h2><p class="sub">단가 및 저녁식사 포함 직무</p></div><button class="x" data-close aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div style="margin-top:6px">
+        <div class="ms-row"><div><div style="font-size:14px;font-weight:600">점심 단가</div><div class="ms-sub">1인 1일 기준</div></div><div style="display:flex;align-items:center;gap:6px"><input class="rate-input" type="number" id="mealLunchRate" style="width:110px" min="0" step="100"><span style="font-size:14px;color:var(--muted)">원</span></div></div>
+        <div class="ms-row"><div><div style="font-size:14px;font-weight:600">저녁 단가</div><div class="ms-sub">1인 1일 기준</div></div><div style="display:flex;align-items:center;gap:6px"><input class="rate-input" type="number" id="mealDinnerRate" style="width:110px" min="0" step="100"><span style="font-size:14px;color:var(--muted)">원</span></div></div>
+        <div style="margin-top:16px"><div style="font-size:14px;font-weight:650;color:var(--navy);margin-bottom:8px">저녁식사 포함 직무</div><div class="ms-check-list" id="mealDinnerRolesList"></div></div>
+      </div>
+      <div class="modal-save-row"><button class="btn-save" id="mealSettingsSave">저장</button></div>
+    </div>
+  </div>
+
+  <!-- 월별 비용 모달 -->
+  <div class="modal" id="trendModal" role="dialog" aria-modal="true" aria-labelledby="trendT">
+    <div class="modal-bg" data-close></div>
+    <div class="modal-card" style="width:min(700px,95vw)">
+      <div class="modal-head"><div><h2 id="trendT">월별 비용 추이</h2><p class="sub">단계 기간에 맞춰 집계된 월별 집행</p></div><button class="x" data-close aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="trend">
+        <div class="tmonth" style="--h:38%"><i></i><b>82.4M 원</b><span>7월</span></div>
+        <div class="tmonth" style="--h:56%"><i></i><b>121.8M 원</b><span>8월</span></div>
+        <div class="tmonth" style="--h:68%"><i></i><b>148.2M 원</b><span>9월</span></div>
+        <div class="tmonth" style="--h:40%"><i></i><b>86.2M 원</b><span>10월</span></div>
+      </div>
+    </div>
+  </div>
+
+<script src="period-modal.js"></script>
+<script>
+const gearBtn=document.getElementById('gearBtn'),gearMenu=document.getElementById('gearMenu');
+function closeMenu(){gearMenu.classList.remove('open');gearBtn.setAttribute('aria-expanded','false');}
+gearBtn.addEventListener('click',e=>{e.stopPropagation();const o=gearMenu.classList.toggle('open');gearBtn.setAttribute('aria-expanded',o);});
+document.addEventListener('click',e=>{if(!gearMenu.contains(e.target)&&!gearBtn.contains(e.target))closeMenu();});
+let lastFocus=null;
+function openModal(id){const m=document.getElementById(id);if(!m)return;lastFocus=document.activeElement;m.classList.add('open');const x=m.querySelector('.x');if(x)x.focus();}
+function closeModal(m){m.classList.remove('open');if(lastFocus&&lastFocus.focus)lastFocus.focus();}
+document.querySelectorAll('[data-modal]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();closeMenu();openModal(b.dataset.modal);}));
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target.closest('[data-close]'))closeModal(m);}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();document.querySelectorAll('.modal.open').forEach(closeModal);}});
+
+const YEAR=2026;
+// PERIOD, EXTRAS, stt are globals set by period-modal.js (loaded before this script)
+const spStart=()=>PERIOD.s.getTime(),spSpan=()=>Math.max(864e5,PERIOD.e-PERIOD.s);
+const minGap=()=>Math.min(0.25,4*864e5/spSpan());
+const extraDays=()=>EXTRAS.reduce((a,e)=>a+e.days,0);
+// 각 직무는 인원 배열(people)을 가지며, 인원마다 독립된 근무기간(s~e)을 가진다
+const roles=[
+  {name:'총괄 디렉터',   daily:420000, people:[{s:[6,1],e:[9,31]}]},
+  {name:'기획 팀장',     daily:320000, people:[{s:[6,8],e:[9,15]},{s:[6,20],e:[9,30]}]},
+  {name:'메인 기획자',   daily:240000, people:[{s:[6,15],e:[9,31]},{s:[6,15],e:[8,31]},{s:[7,1],e:[9,31]}]},
+  {name:'상담 컨설턴트', daily:180000, people:[{s:[7,1],e:[9,10]},{s:[7,1],e:[9,30]},{s:[6,20],e:[8,31]},{s:[7,8],e:[9,10]},{s:[7,1],e:[9,10]},{s:[6,15],e:[9,15]},{s:[7,1],e:[9,30]},{s:[7,8],e:[8,31]}]},
+];
+const DOW=['일','월','화','수','목','금','토'];
+const D=([m,d])=>new Date(YEAR,m,d);
+const dToF=arr=>Math.min(1,Math.max(0,(D(arr)-spStart())/spSpan()));
+const fToD=f=>{const dt=new Date(spStart()+Math.min(1,Math.max(0,f))*spSpan());return[dt.getMonth(),dt.getDate()];};
+// 근무 패턴: 7=주7일(휴무 없음), 6=주6일(주말 출근·수요일 휴무·기본), 5=주5일(토·일 휴무). 월별로 다르게 지정 가능
+const patOf=(p,m)=>(p.pat&&p.pat[m]!=null)?p.pat[m]:6;
+function dayWorks(w,pat){if(pat===7)return true;if(pat===5)return w>=1&&w<=5;return w!==3;}
+function isWorkP(date,p){if(date<D(p.s)||date>D(p.e))return false;const key=date.getMonth()+'-'+date.getDate();if(p.ov&&key in p.ov)return p.ov[key];return dayWorks(date.getDay(),patOf(p,date.getMonth()));}
+function ppdP(p){let n=0;const d=new Date(D(p.s)),end=D(p.e);while(d<=end){if(dayWorks(d.getDay(),patOf(p,d.getMonth())))n++;d.setDate(d.getDate()+1);}return n;}
+function monthWorkP(p,m){let n=0;const dim=new Date(YEAR,m+1,0).getDate();for(let d=1;d<=dim;d++){if(isWorkP(new Date(YEAR,m,d),p))n++;}return n;}
+function monthsOf(p){const a=[];for(let m=p.s[0];m<=p.e[0];m++)a.push(m);return a;}
+function masterMonths(){const a=[];for(let m=PERIOD.s.getMonth();m<=PERIOD.e.getMonth();m++)a.push(m);return a;}
+const personExtrasDays=p=>EXTRAS.reduce((a,e,ei)=>a+(p.extraOv?.[ei]??e.days),0);
+const headOf=r=>r.people.length;
+const roleDays=r=>r.people.reduce((a,p)=>a+ppdP(p),0);
+const roleTotalDays=r=>r.people.reduce((a,p)=>a+ppdP(p)+personExtrasDays(p),0);
+const total=r=>r.daily*roleTotalDays(r);
+const fmtM=n=>n.toLocaleString('ko-KR')+'<span class="wunit"> 원</span>';
+const fmtW=n=>n.toLocaleString('ko-KR')+'<span class="wunit"> 원</span>';
+const fmtDate=([m,d])=>String(m+1).padStart(2,'0')+'.'+String(d).padStart(2,'0');
+
+const grid=document.getElementById('grid');
+const labTotalEl=document.getElementById('labTotal'),labCountEl=document.getElementById('labCount');
+const navLaborAmt=document.getElementById('navLaborAmt');
+
+function render(){
+  grid.innerHTML='';
+  roles.forEach((r,i)=>{
+    const card=document.createElement('div');card.className='job';card.setAttribute('role','listitem');
+    card.innerHTML=
+      '<div class="job-top"><div class="job-top-left" style="display:flex;align-items:flex-start;gap:4px">'+
+          '<span class="drag-grip" title="드래그하여 순서 변경 / 우클릭으로 삭제"><svg viewBox="0 0 10 16" fill="currentColor" width="10" height="16"><circle cx="3" cy="3" r="1.5"/><circle cx="7" cy="3" r="1.5"/><circle cx="3" cy="8" r="1.5"/><circle cx="7" cy="8" r="1.5"/><circle cx="3" cy="13" r="1.5"/><circle cx="7" cy="13" r="1.5"/></svg></span>'+
+          '<div style="flex:1;min-width:0"><span class="jname" contenteditable="true" data-i="'+i+'" spellcheck="false">'+r.name+'</span>'+
+          '<div class="jdays">'+roleTotalDays(r)+'일 · <b>'+headOf(r)+'명</b></div></div></div>'+
+        '<div class="hc">'+
+          '<button class="minus" data-i="'+i+'"'+(headOf(r)===0?' disabled':'')+' aria-label="'+r.name+' 인원 감소"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>'+
+          '<button class="plus" data-i="'+i+'" aria-label="'+r.name+' 인원 추가"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>'+
+          '<button class="job-detail" data-d="'+i+'" title="상세 보기" aria-label="상세 보기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>'+
+        '</div></div>'+
+      '<div class="job-mid"><div class="jamt">'+fmtM(total(r))+'</div></div>';
+    grid.appendChild(card);
+  });
+  const add=document.createElement('button');add.className='job add';add.id='addRole';add.setAttribute('aria-label','직무 추가');
+  add.innerHTML='<span class="bp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span>직무 추가</span>';
+  if(roles.length>=15)add.style.display='none';
+  grid.appendChild(add);
+  const sum=roles.reduce((a,r)=>a+total(r),0);
+  document.getElementById('labTotalNum').innerHTML=fmtW(sum);
+  labCountEl.textContent='  직무 '+roles.length+'개';
+  navLaborAmt.innerHTML=fmtM(sum);
+  saveRoles();
+  layoutGrid();
+  _wireCardDnD();
+}
+let _jobDragIdx=null;
+function _wireCardDnD(){
+  grid.querySelectorAll('.job:not(.add)').forEach((card,idx)=>{
+    card.setAttribute('draggable','true');
+    card.addEventListener('dragstart',e=>{
+      if(e.target.closest('button')||e.target.closest('[contenteditable]')){e.preventDefault();return;}
+      _jobDragIdx=idx;
+      setTimeout(()=>card.classList.add('dragging'),0);
+      e.dataTransfer.effectAllowed='move';
+    });
+    card.addEventListener('dragend',()=>{
+      card.classList.remove('dragging');
+      grid.querySelectorAll('.job.drag-over').forEach(c=>c.classList.remove('drag-over'));
+    });
+    card.addEventListener('dragover',e=>{
+      e.preventDefault();e.dataTransfer.dropEffect='move';
+      if(_jobDragIdx!==idx){
+        grid.querySelectorAll('.job.drag-over').forEach(c=>c.classList.remove('drag-over'));
+        card.classList.add('drag-over');
+      }
+    });
+    card.addEventListener('dragleave',e=>{if(!card.contains(e.relatedTarget))card.classList.remove('drag-over');});
+    card.addEventListener('drop',e=>{
+      e.preventDefault();
+      if(_jobDragIdx===null||_jobDragIdx===idx)return;
+      const item=roles.splice(_jobDragIdx,1)[0];
+      roles.splice(idx,0,item);
+      _jobDragIdx=null;
+      render();
+    });
+  });
+}
+function layoutGrid(){
+  if(window.innerWidth<=720)return;
+  const totalCards=roles.length+(roles.length<15?1:0), cols=window.innerWidth<=1000?3:5;
+  const rows=Math.ceil(totalCards/cols);
+  const gap=14, top=grid.getBoundingClientRect().top;
+  const avail=window.innerHeight-top-24;
+  let ch=(avail-(rows-1)*gap)/rows;
+  ch=Math.max(140,Math.min(ch,232));
+  grid.style.gridAutoRows=ch+'px';
+}
+window.addEventListener('resize',layoutGrid);
+
+const roleModalOpenFor=i=>document.getElementById('roleModal').classList.contains('open')&&currentRole===i;
+grid.addEventListener('click',e=>{
+  if(e.target.closest('.jname[contenteditable]'))return;
+  const plus=e.target.closest('.plus');
+  if(plus){const i=+plus.dataset.i,r=roles[i],last=r.people[r.people.length-1];r.people.push(last?{s:[...last.s],e:[...last.e]}:{s:[6,1],e:[9,31]});render();if(roleModalOpenFor(i)){updRoleSub(i);renderRoleBody(i);}return;}
+  const minus=e.target.closest('.minus');
+  if(minus){const i=+minus.dataset.i,r=roles[i];if(r.people.length>0)r.people.pop();render();if(roleModalOpenFor(i)){updRoleSub(i);renderRoleBody(i);}return;}
+  const det=e.target.closest('.job-detail');
+  if(det){openRole(+det.dataset.d);return;}
+  if(e.target.closest('#addRole')){if(roles.length>=15)return;roles.push({name:'새 직무 '+(roles.length+1),daily:200000,people:[{s:[6,1],e:[9,31]}]});render();return;}
+});
+
+// jname 인라인 편집
+grid.addEventListener('blur',e=>{
+  const jn=e.target.closest('.jname[contenteditable]');if(!jn)return;
+  const i=+jn.dataset.i,txt=jn.textContent.trim();
+  if(txt)roles[i].name=txt;else jn.textContent=roles[i].name;
+},true);
+grid.addEventListener('keydown',e=>{
+  const jn=e.target.closest('.jname[contenteditable]');if(!jn)return;
+  if(e.key==='Enter'){e.preventDefault();jn.blur();}
+  if(e.key==='Escape'){jn.textContent=roles[+jn.dataset.i].name;jn.blur();}
+  e.stopPropagation();
+});
+// 우클릭 삭제 컨텍스트 메뉴
+let _ctx=null;
+const _rmCtx=()=>{if(_ctx){_ctx.remove();_ctx=null;}};
+document.addEventListener('click',_rmCtx);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')_rmCtx();});
+grid.addEventListener('contextmenu',e=>{
+  const job=e.target.closest('.job:not(.add)');if(!job)return;
+  e.preventDefault();_rmCtx();
+  const det=job.querySelector('[data-d]');if(!det)return;
+  const i=+det.dataset.d;
+  _ctx=document.createElement('div');_ctx.className='ctx-menu';
+  _ctx.innerHTML='<button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:15px;height:15px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>직무 삭제</button>';
+  _ctx.style.cssText='top:'+e.clientY+'px;left:'+e.clientX+'px';
+  _ctx.querySelector('button').addEventListener('click',()=>{roles.splice(i,1);render();_rmCtx();});
+  document.body.appendChild(_ctx);
+});
+function buildCalStrip(p,m){
+  const dim=new Date(YEAR,m+1,0).getDate();let cells='';
+  for(let d=1;d<=dim;d++){const dt=new Date(YEAR,m,d),w=dt.getDay(),inR=dt>=D(p.s)&&dt<=D(p.e),on=isWorkP(dt,p),ov=!!(p.ov&&((m+'-'+d) in p.ov));
+    cells+='<div class="cday'+(on?' on':'')+(inR?'':' out')+(ov?' ov':'')+(w===0?' sun':w===6?' sat':'')+'" data-m="'+m+'" data-d="'+d+'">'+d+'</div>';}
+  return '<div class="cal-strip">'+cells+'</div>';
+}
+function personCalsHTML(r,p){
+  return masterMonths().map(m=>{
+    const inRange=m>=p.s[0]&&m<=p.e[0];
+    const pat=patOf(p,m);
+    const mDays=inRange?monthWorkP(p,m):0;
+    const mCost=mDays*r.daily;
+    const statsHTML=inRange
+      ?'<span class="mc-mstats">( '+mDays+'일 근무 ) · <b>'+fmtW(mCost)+'</b></span>'
+      :'';
+    return '<div class="mcard'+(inRange?'':' disabled')+'">'+
+      '<div class="mc-head">'+
+        '<h3><span class="mc-mon">'+(m+1)+'월</span>'+statsHTML+'</h3>'+
+        '<div class="pat-btns" role="group" aria-label="'+(m+1)+'월 주간 근무일">'+
+          [5,6,7].map(v=>'<button class="pat'+(pat===v?' on':'')+'" data-m="'+m+'" data-pat="'+v+'">'+v+'일</button>').join('')+
+        '</div>'+
+      '</div>'+buildCalStrip(p,m)+'</div>';
+  }).join('');
+}
+const daysToWeekStr=d=>d>0&&d%7===0?(d/7)+'주일':d+'일';
+// 인원별 카드: 기간 근무(1) + 추가항목(4슬롯, 미사용은 dim) + 합계(1) = 항상 6장
+function breakdownInner(r,p,pi){
+  const base=ppdP(p);
+  const slots=[...EXTRAS];
+  while(slots.length<4)slots.push({name:'추가 항목',days:0});
+  const eff=slots.map((e,ei)=>({name:e.name,days:ei<EXTRAS.length?(p.extraOv?.[ei]??e.days):0,ovr:ei<EXTRAS.length&&p.extraOv?.[ei]!=null}));
+  const exSum=eff.reduce((a,e)=>a+e.days,0),tot=base+exSum;
+  const baseCost=base*r.daily,totCost=tot*r.daily;
+  const pa=pi!=null?' data-pi="'+pi+'"':'';
+  let cards='<div class="bk-card base">'+
+    '<span class="bk-card-lbl">기간 근무</span>'+
+    '<span class="bk-card-days">'+base+'일</span>'+
+    '<span class="bk-card-amt">'+fmtW(baseCost)+'</span>'+
+  '</div>';
+  eff.forEach((e,ei)=>{
+    const dim=e.days===0;
+    cards+='<div class="bk-card add'+(dim?' inactive':'')+(e.ovr?' has-override':'')+'" data-extra-idx="'+ei+'"'+pa+'>'+
+      '<span class="bk-card-lbl">'+e.name+'</span>'+
+      '<span class="bk-card-days">'+(dim?'—':'+'+daysToWeekStr(e.days))+'</span>'+
+      '<span class="bk-card-amt">'+(dim?'—':fmtW(e.days*r.daily))+'</span>'+
+    '</div>';
+  });
+  cards+='<div class="bk-card tot">'+
+    '<span class="bk-card-lbl">합 계</span>'+
+    '<span class="bk-card-days">'+tot+'일</span>'+
+    '<span class="bk-card-amt">'+fmtW(totCost)+'</span>'+
+  '</div>';
+  return '<div class="bk-cards">'+cards+'</div>';
+}
+function breakdownHTML(r,p){return '<div class="pbreak">'+breakdownInner(r,p)+'</div>';}
+function personHTML(r,p,pi){
+  return '<div class="person-card-row">'+
+      '<span class="p-num">'+(pi+1)+'</span>'+
+      '<div class="pbreak">'+breakdownInner(r,p,pi)+'</div>'+
+    '</div>';
+}
+let currentRole=0;
+function updRoleSub(i){const r=roles[i];document.getElementById('roleSub').innerHTML='인원 '+headOf(r)+'명 · 근무 '+roleTotalDays(r)+'일 · '+fmtW(total(r));}
+function updPersonDetailSub(i,pi){const r=roles[i],p=r.people[pi];const el=document.getElementById('personDetailSub');if(el)el.innerHTML='기간 근무 '+ppdP(p)+'일 · '+fmtW(ppdP(p)*r.daily);}
+function fillPerson(sec,i,pi){
+  sec.innerHTML=personHTML(roles[i],roles[i].people[pi],pi);
+  const baseCard=sec.querySelector('.bk-card.base');
+  if(baseCard)baseCard.addEventListener('dblclick',()=>openPersonDetail(sec,i,pi));
+  sec.querySelectorAll('.bk-card.add:not(.inactive)').forEach(card=>{
+    card.addEventListener('dblclick',e=>{e.stopPropagation();showExtraDropdown(card,i,pi,+card.dataset.extraIdx);});
+  });
+}
+let _extraDd=null;
+const _rmExtraDd=()=>{if(_extraDd){_extraDd.remove();_extraDd=null;}};
+document.addEventListener('click',_rmExtraDd);
+function showExtraDropdown(card,i,pi,ei){
+  _rmExtraDd();
+  const p=roles[i].people[pi];
+  const curDays=p.extraOv?.[ei]??EXTRAS[ei]?.days??7;
+  const curW=Math.round(curDays/7);
+  _extraDd=document.createElement('div');_extraDd.className='extra-dd';
+  _extraDd.innerHTML=[1,2,3,4].map(w=>'<button data-w="'+w+'"'+(w===curW?' class="on"':'')+'>'+w+'주일</button>').join('');
+  const rc=card.getBoundingClientRect();
+  _extraDd.style.top=(rc.bottom+6)+'px';_extraDd.style.left=rc.left+'px';
+  _extraDd.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      if(!p.extraOv)p.extraOv={};
+      p.extraOv[ei]=(+btn.dataset.w)*7;
+      const sec=card.closest('.person');
+      if(sec)fillPerson(sec,i,pi);
+      updRoleSub(i);render();
+      _rmExtraDd();
+    });
+  });
+  document.body.appendChild(_extraDd);
+}
+function wirePat(sec,i,pi){
+  sec.querySelectorAll('.pat').forEach(b=>b.addEventListener('click',()=>{
+    const p=roles[i].people[pi],m=+b.dataset.m;if(!p.pat)p.pat={};p.pat[m]=+b.dataset.pat;
+    if(p.ov)Object.keys(p.ov).forEach(k=>{if(+k.split('-')[0]===m)delete p.ov[k];});
+    fillDetailSec(sec,i,pi);if(currentDetailSec)fillPerson(currentDetailSec,i,pi);updRoleSub(i);updPersonDetailSub(i,pi);render();
+  }));
+}
+function wireCells(sec,i,pi){
+  sec.querySelectorAll('.cday:not(.out)').forEach(c=>c.addEventListener('click',()=>{
+    const p=roles[i].people[pi],m=+c.dataset.m,d=+c.dataset.d,dt=new Date(YEAR,m,d);
+    if(dt<D(p.s)||dt>D(p.e))return;
+    if(!p.ov)p.ov={};p.ov[m+'-'+d]=!isWorkP(dt,p);
+    fillDetailSec(sec,i,pi);if(currentDetailSec)fillPerson(currentDetailSec,i,pi);updRoleSub(i);updPersonDetailSub(i,pi);render();
+  }));
+}
+let currentDetailSec=null;
+function fillDetailSec(sec,i,pi){
+  const r=roles[i],p=r.people[pi];
+  const sf=dToF(p.s)*100,ef=dToF(p.e)*100;
+  sec.className='person-detail-inner';
+  sec.innerHTML=
+    '<div class="prange">'+
+      '<div class="pr-fill" style="left:'+sf+'%;width:'+(ef-sf)+'%">'+
+        '<span class="d0">'+fmtDate(p.s)+'</span>'+
+        '<span class="d1">'+fmtDate(p.e)+'</span>'+
+      '</div>'+
+      '<button class="pr-handle s" data-edge="s" style="left:'+sf+'%" role="slider" aria-label="시작일 조정"></button>'+
+      '<button class="pr-handle e" data-edge="e" style="left:'+ef+'%" role="slider" aria-label="종료일 조정"></button>'+
+    '</div>'+
+    '<div class="months">'+personCalsHTML(r,p)+'</div>';
+  wirePersonDrag(sec,i,pi,currentDetailSec);
+  wirePat(sec,i,pi);
+  wireCells(sec,i,pi);
+}
+function openPersonDetail(mainSec,i,pi){
+  currentDetailSec=mainSec;
+  const r=roles[i],p=r.people[pi];
+  document.getElementById('personDetailT').textContent=r.name+' ('+(pi+1)+'번)';
+  document.getElementById('personDetailSub').innerHTML='기간 근무 '+ppdP(p)+'일 · '+fmtW(ppdP(p)*r.daily);
+  const body=document.getElementById('personDetailBody');
+  body.innerHTML='';
+  const sec=document.createElement('div');
+  body.appendChild(sec);
+  fillDetailSec(sec,i,pi);
+  openModal('personDetailModal');
+}
+function renderRoleBody(i){
+  const r=roles[i],body=document.getElementById('roleBody');body.innerHTML='';
+  if(headOf(r)===0){body.innerHTML='<p class="modal-hint">등록된 인원이 없습니다. 카드 우측 상단의 + 버튼으로 인원을 추가하세요. 현재 이 직무의 인건비는 0 원 입니다.</p>';return;}
+  r.people.forEach((p,pi)=>{
+    const sec=document.createElement('div');sec.className='person';
+    body.appendChild(sec);
+    fillPerson(sec,i,pi);
+  });
+}
+function wirePersonDrag(sec,i,pi,mainSec){
+  const r=roles[i],p=r.people[pi];
+  const bar=sec.querySelector('.prange'),fill=sec.querySelector('.pr-fill');
+  const hs=sec.querySelector('.pr-handle.s'),he=sec.querySelector('.pr-handle.e');
+  const dts=sec.querySelector('.pr-fill .d0'),dte=sec.querySelector('.pr-fill .d1');
+  function paint(){const sf=dToF(p.s),ef=dToF(p.e);fill.style.left=(sf*100)+'%';fill.style.width=((ef-sf)*100)+'%';hs.style.left=(sf*100)+'%';he.style.left=(ef*100)+'%';dts.textContent=fmtDate(p.s);dte.textContent=fmtDate(p.e);}
+  function setEdge(edge,frac){const g=minGap();frac=Math.min(1,Math.max(0,frac));if(edge==='s'){frac=Math.min(frac,dToF(p.e)-g);p.s=fToD(Math.max(0,frac));}else{frac=Math.max(frac,dToF(p.s)+g);p.e=fToD(Math.min(1,frac));}paint();}
+  function commit(){fillDetailSec(sec,i,pi);if(mainSec)fillPerson(mainSec,i,pi);updRoleSub(i);updPersonDetailSub(i,pi);render();}
+  [hs,he].forEach(h=>{
+    const edge=h.dataset.edge;
+    const move=e=>{const rc=bar.getBoundingClientRect();if(!rc.width)return;setEdge(edge,(e.clientX-rc.left)/rc.width);};
+    h.addEventListener('pointerdown',e=>{e.preventDefault();h.setPointerCapture(e.pointerId);h.classList.add('drag');h.addEventListener('pointermove',move);});
+    const up=()=>{h.classList.remove('drag');h.removeEventListener('pointermove',move);commit();};
+    h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up);
+    h.addEventListener('keydown',e=>{const step=(e.shiftKey?7:1)*864e5/spSpan(),cur=dToF(edge==='s'?p.s:p.e);if(e.key==='ArrowLeft'){e.preventDefault();setEdge(edge,cur-step);commit();}else if(e.key==='ArrowRight'){e.preventDefault();setEdge(edge,cur+step);commit();}});
+  });
+}
+function openRole(i){
+  currentRole=i;
+  document.getElementById('roleT').textContent=roles[i].name;
+  updRoleSub(i);
+  renderRoleBody(i);
+  openModal('roleModal');
+}
+render();
+if(location.hash==='#openRate'){history.replaceState(null,'',location.pathname);openRateModal();}
+
+// period-modal.js (loaded before this script) manages stage timeline, extras, and PERIOD edits.
+// Notify it when labor.html's role modal is open so it can refresh breakdowns.
+window.onECUpdate=()=>{
+  render();
+  if(document.getElementById('roleModal').classList.contains('open')){
+    updRoleSub(currentRole);
+    renderRoleBody(currentRole);
+  }
+};
+
+// ── localStorage ──────────────────────────────────────────
+function saveRoles(){try{localStorage.setItem('ec-roles',JSON.stringify(roles));}catch(e){}}
+function loadMealSettings(){try{const s=JSON.parse(localStorage.getItem('ec-meal-settings'));if(!s||s.lunch==null)return{lunch:8000,dinner:15000,dinnerRoles:[]};return{lunch:s.lunch,dinner:s.dinner??15000,dinnerRoles:Array.isArray(s.dinnerRoles)?s.dinnerRoles:[]};}catch(e){return{lunch:8000,dinner:15000,dinnerRoles:[]};}}
+function saveMealSettings(obj){try{localStorage.setItem('ec-meal-settings',JSON.stringify(obj));}catch(e){}}
+
+// ── 단가표 모달 ───────────────────────────────────────────
+const DRAG_GRIP_SVG='<svg viewBox="0 0 10 16" fill="currentColor" width="10" height="16"><circle cx="3" cy="3" r="1.5"/><circle cx="7" cy="3" r="1.5"/><circle cx="3" cy="8" r="1.5"/><circle cx="7" cy="8" r="1.5"/><circle cx="3" cy="13" r="1.5"/><circle cx="7" cy="13" r="1.5"/></svg>';
+let _rateDragIdx=null;
+function renderRateTable(){
+  const tbody=document.getElementById('rateTableBody');
+  tbody.innerHTML=roles.map((r,i)=>
+    '<tr draggable="true" data-ri="'+i+'">'+
+      '<td class="rate-drag-handle">'+DRAG_GRIP_SVG+'</td>'+
+      '<td style="font-weight:600">'+r.name+'</td>'+
+      '<td><input class="rate-input" type="text" inputmode="numeric" data-ri="'+i+'" value="'+r.daily.toLocaleString('ko-KR')+'"></td>'+
+      '<td style="font-family:var(--mono);font-size:13px;color:var(--muted);min-width:130px" id="rateRowTot'+i+'">'+fmtW(total(r))+'</td>'+
+    '</tr>'
+  ).join('');
+  // 입력 이벤트: 천단위 포맷 + 실시간 소계 갱신
+  tbody.querySelectorAll('.rate-input').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const n=Math.max(0,parseInt(inp.value.replace(/[^0-9]/g,''))||0);
+      const i=+inp.dataset.ri;roles[i].daily=n;
+      document.getElementById('rateRowTot'+i).innerHTML=fmtW(total(roles[i]));
+    });
+    inp.addEventListener('focus',()=>{inp.value=roles[+inp.dataset.ri].daily||'';inp.select();});
+    inp.addEventListener('blur',()=>{const n=roles[+inp.dataset.ri].daily;inp.value=n>0?n.toLocaleString('ko-KR'):'0';});
+  });
+  // 드래그 앤 드랍 순서 변경
+  tbody.querySelectorAll('tr').forEach(tr=>{
+    tr.addEventListener('dragstart',e=>{_rateDragIdx=+tr.dataset.ri;setTimeout(()=>tr.classList.add('dragging'),0);e.dataTransfer.effectAllowed='move';});
+    tr.addEventListener('dragend',()=>{tr.classList.remove('dragging');tbody.querySelectorAll('tr.drag-over').forEach(t=>t.classList.remove('drag-over'));});
+    tr.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';if(_rateDragIdx!==+tr.dataset.ri){tbody.querySelectorAll('tr.drag-over').forEach(t=>t.classList.remove('drag-over'));tr.classList.add('drag-over');}});
+    tr.addEventListener('dragleave',e=>{if(!tr.contains(e.relatedTarget))tr.classList.remove('drag-over');});
+    tr.addEventListener('drop',e=>{
+      e.preventDefault();const toIdx=+tr.dataset.ri;
+      if(_rateDragIdx===null||_rateDragIdx===toIdx)return;
+      const item=roles.splice(_rateDragIdx,1)[0];roles.splice(toIdx,0,item);
+      _rateDragIdx=null;renderRateTable();
+    });
+  });
+}
+function openRateModal(){
+  document.getElementById('rateSub').textContent='직무 '+roles.length+'개 · 일일 단가 조정';
+  renderRateTable();
+  openModal('rateModal');closeMenu();
+}
+document.getElementById('rateModalSave').addEventListener('click',()=>{saveRoles();render();closeModal(document.getElementById('rateModal'));});
+document.getElementById('menuRateBtn').addEventListener('click',openRateModal);
+document.getElementById('menuRateBtn2').addEventListener('click',openRateModal);
+
+// ── 식대 설정 모달 ─────────────────────────────────────────
+function openMealSettingsModal(){
+  const s=loadMealSettings();
+  document.getElementById('mealLunchRate').value=s.lunch;
+  document.getElementById('mealDinnerRate').value=s.dinner;
+  const list=document.getElementById('mealDinnerRolesList');
+  list.innerHTML=roles.map((r,i)=>
+    '<label class="ms-check">'+
+      '<input type="checkbox" data-ri="'+i+'"'+(s.dinnerRoles.includes(i)?' checked':'')+'>'+
+      '<span>'+r.name+'</span>'+
+    '</label>'
+  ).join('');
+  openModal('mealSettingsModal');closeMenu();
+}
+document.getElementById('mealSettingsSave').addEventListener('click',()=>{
+  const s={
+    lunch:Math.max(0,+document.getElementById('mealLunchRate').value||0),
+    dinner:Math.max(0,+document.getElementById('mealDinnerRate').value||0),
+    dinnerRoles:[...document.getElementById('mealDinnerRolesList').querySelectorAll('input:checked')].map(c=>+c.dataset.ri)
+  };
+  saveMealSettings(s);
+  closeModal(document.getElementById('mealSettingsModal'));
+});
+const menuMealBtn=document.getElementById('menuMealBtn');
+if(menuMealBtn)menuMealBtn.addEventListener('click',openMealSettingsModal);
+if(location.hash==='#openMeal')location.replace('meal.html#mealSettings');
+</script>
+<script>
+  if(window.self!==window.top){
+    document.body.classList.add('in-iframe');
+    const requestParentPanel = (href) => {
+      try{
+        if(window.parent && typeof window.parent.ECParentOpenPanel === 'function'){
+          window.parent.ECParentOpenPanel(href);
+          return true;
+        }
+      }catch(e){}
+      return false;
+    };
+    document.querySelectorAll('a[href]').forEach(link => {
+      const href = link.getAttribute('href');
+      if(!href || href.startsWith('#') || !/\.html($|#)/.test(href)) return;
+      link.addEventListener('click', e => {
+        if(requestParentPanel(href)) e.preventDefault();
+      });
+    });
+  }
+</script>
+</body>
+</html>

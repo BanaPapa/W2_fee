@@ -1,0 +1,110 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@latest/dist/web/static/pretendard.css">
+<title>Easy Commission - 모바일 동반</title>
+<style>
+:root{--bg:oklch(98.7% .005 240);--surface:#fff;--surface-2:oklch(97% .008 238);--fg:oklch(28% .03 250);--muted:oklch(55% .02 250);--border:oklch(93% .008 238);--accent:oklch(58% .12 218);--teal:oklch(64% .10 178);--navy:oklch(34% .045 256);--sun:oklch(60% .15 25);--sat:oklch(58% .12 250);--font:"Pretendard",-apple-system,BlinkMacSystemFont,sans-serif;--mono:"Pretendard",monospace}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,oklch(97% .012 238),oklch(99.3% .004 238));font-family:var(--font);color:var(--fg);-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.stage{min-height:100vh;display:grid;place-items:center;padding:32px}
+.phone{width:min(390px,100%);min-height:820px;background:var(--navy);border-radius:46px;padding:12px;box-shadow:0 30px 80px oklch(34% .04 256/.24)}
+.screen{background:var(--bg);border-radius:36px;min-height:796px;overflow:hidden;position:relative}
+.status{height:38px;display:flex;justify-content:center;align-items:center}.island{width:90px;height:26px;background:var(--fg);border-radius:999px}
+.content{padding:18px 18px 92px}.k{color:var(--accent);font-weight:700;font-size:12px;letter-spacing:.04em}
+h1{font-size:30px;font-weight:640;letter-spacing:-.015em;margin:6px 0}
+.grand{background:linear-gradient(135deg,var(--surface),oklch(97% .016 224));border:1px solid var(--border);border-radius:24px;padding:18px;margin:10px 0 14px;box-shadow:0 1px 2px oklch(40% .03 250/.05)}
+.grand span{color:var(--muted);font-weight:600}.grand strong{font-size:36px;font-weight:680;display:block;letter-spacing:-.02em;color:var(--navy);margin:2px 0}.grand small{color:var(--muted)}
+.phase{height:8px;border-radius:999px;background:oklch(93% .01 238);overflow:hidden;margin-top:10px}.phase span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--teal))}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:10px}.card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:14px;box-shadow:0 1px 2px oklch(40% .03 250/.04)}.card small{color:var(--muted);font-weight:600}.card b{display:block;font-size:19px;font-weight:640;margin:6px 0 2px;color:var(--navy)}
+.accordion{margin-top:14px}.acc-head{width:100%;border:0;background:var(--surface);border-radius:16px;padding:14px;text-align:left;font-weight:640;display:flex;justify-content:space-between;align-items:center;cursor:pointer;box-shadow:0 1px 2px oklch(40% .03 250/.04)}.acc-head span{color:var(--accent);font-weight:680}
+.acc-body{display:none;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px;margin-top:8px}.acc-body.open{display:block}
+.dow{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px}.dow span{text-align:center;font-size:11px;font-weight:650;color:var(--muted)}.dow span:first-child{color:var(--sun)}.dow span:last-child{color:var(--sat)}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.day{aspect-ratio:1/1;min-height:34px;border-radius:11px;border:1px solid var(--border);background:var(--surface);font-size:12px;color:var(--fg);cursor:pointer;transition:border-color .14s,background .14s}.day.blank{border:0;background:transparent;cursor:default}.day:hover:not(.blank){border-color:var(--accent)}
+.day.on{background:color-mix(in oklch,var(--teal) 16%,white);border-color:var(--teal);font-weight:680}.day.sun{color:var(--sun)}.day.sat{color:var(--sat)}
+.bottom{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(4,1fr);padding:10px 8px 20px}.bottom button{border:0;background:transparent;color:var(--muted);font-weight:600;font-size:13px;cursor:pointer}.bottom button.on{color:var(--accent);font-weight:680}
+.notes{max-width:520px}.notes h1{font-size:40px;font-weight:640;line-height:1.15}.notes li{margin:10px 0;color:var(--muted);line-height:1.6}.notes{display:none}
+@media(min-width:880px){.stage{grid-template-columns:1fr 1fr}.notes{display:block}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+body.in-iframe .notes{display:none!important}
+body.in-iframe .stage{grid-template-columns:1fr!important;padding:16px}
+</style>
+</head>
+<body>
+<main class="stage">
+  <section class="phone" aria-label="모바일 동반 화면">
+    <div class="screen">
+      <div class="status"><div class="island"></div></div>
+      <div class="content">
+        <div class="k">Easy Commission 모바일</div>
+        <h1>요약</h1>
+        <section class="grand">
+          <span>총 예산</span><strong>438.6M 원</strong><small>강남 리버파크 분양 제안</small>
+          <div class="phase"><span style="width:76%"></span></div>
+        </section>
+        <section class="tabs">
+          <article class="card"><small>인건비</small><b>184.2M 원</b><small>직무 12개</small></article>
+          <article class="card"><small>식대</small><b>32.8M 원</b><small>수동 4건</small></article>
+          <article class="card"><small>광고비</small><b>96.5M 원</b><small>집행 6건</small></article>
+          <article class="card"><small>운영비</small><b>71.9M 원</b><small>항목 8건</small></article>
+        </section>
+        <section class="accordion">
+          <button class="acc-head" aria-expanded="true">9월 근무 체크 <span id="cnt">0일</span></button>
+          <div class="acc-body open">
+            <div class="dow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+            <div class="days" id="days"></div>
+          </div>
+        </section>
+      </div>
+      <nav class="bottom" aria-label="모바일 탭">
+        <button class="on">요약</button><button>비용</button><button>체크</button><button>설정</button>
+      </nav>
+    </div>
+  </section>
+  <section class="notes">
+    <h1>모바일은 빠른 확인과 최소 수정에 집중합니다.</h1>
+    <ul>
+      <li>큰 총액 카드와 탭별 요약으로 이동 중 빠르게 검토합니다.</li>
+      <li>요일이 정렬된 달력에서 근무 체크 날짜를 바로 토글합니다.</li>
+      <li>데스크톱과 동일한 네이비·틸·그레이 시각 체계를 유지합니다.</li>
+    </ul>
+  </section>
+</main>
+<script>
+const YEAR=2026,M=8; // 9월
+const first=new Date(YEAR,M,1).getDay(),dim=new Date(YEAR,M+1,0).getDate();
+const days=document.getElementById("days");let html="";
+for(let i=0;i<first;i++)html+=`<div class="day blank"></div>`;
+for(let d=1;d<=dim;d++){const dow=new Date(YEAR,M,d).getDay();const on=dow>=1&&dow<=5;html+=`<button class="day ${on?'on':''} ${dow===0?'sun':''} ${dow===6?'sat':''}" aria-pressed="${on}" aria-label="9월 ${d}일">${d}</button>`;}
+days.innerHTML=html;
+function recount(){document.getElementById("cnt").textContent=days.querySelectorAll(".day.on").length+"일";}
+recount();
+document.addEventListener("click",e=>{
+  if(e.target.classList.contains("day")&&!e.target.classList.contains("blank")){e.target.classList.toggle("on");e.target.setAttribute("aria-pressed",e.target.classList.contains("on"));recount();}
+  if(e.target.classList.contains("acc-head")){const b=document.querySelector(".acc-body");b.classList.toggle("open");e.target.setAttribute("aria-expanded",b.classList.contains("open"));}
+});
+if(window.self!==window.top){
+  document.body.classList.add('in-iframe');
+  const requestParentPanel = (href) => {
+    try{
+      if(window.parent && typeof window.parent.ECParentOpenPanel === 'function'){
+        window.parent.ECParentOpenPanel(href);
+        return true;
+      }
+    }catch(e){}
+    return false;
+  };
+  document.querySelectorAll('a[href]').forEach(link => {
+    const href = link.getAttribute('href');
+    if(!href || href.startsWith('#') || !/\.html($|#)/.test(href)) return;
+    link.addEventListener('click', e => {
+      if(requestParentPanel(href)) e.preventDefault();
+    });
+  });
+}
+</script>
+</body>
+</html>
