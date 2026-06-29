@@ -29,6 +29,7 @@
   --surface-2: rgba(255, 255, 255, 0.45);
   --glass-brd: rgba(255, 255, 255, 0.75);
   --glass-blur: 18px;
+  color-scheme: light;
 
   /* text */
   --fg: #2a2f4a;
@@ -85,6 +86,7 @@
   --surface-2: #ebe7dd;
   --glass-brd: #e2ded2;
   --glass-blur: 0px;
+  color-scheme: light;
 
   /* text */
   --fg: #2a2820;
@@ -114,6 +116,230 @@
   --mesh: linear-gradient(135deg, #f4f2ec, #efe9df);
   --blob-opacity: 0;
   --scrim: rgba(22, 20, 15, 0.34);
+}
+
+/* ============================================================
+   THEME: Noir  (깔끔한 블랙 — minimal dark, monochrome chrome)
+   ============================================================ */
+:root[data-theme="noir"] {
+  --radius-card: 18px;
+  --radius-md: 12px;
+  --radius-sm: 9px;
+
+  --bg: #0c0c0f;
+  --surface: #161619;
+  --surface-solid: #1c1c20;
+  --surface-2: #202024;
+  --glass-brd: rgba(255, 255, 255, 0.09);
+  --glass-blur: 0px;
+  color-scheme: dark;
+
+  --fg: #e7e7ea;
+  --ink: #f5f5f7;
+  --ink-strong: #ffffff;
+  --muted: #8a8a93;
+  --border: rgba(255, 255, 255, 0.10);
+
+  /* keep category coding, brightened for dark ground */
+  --accent: #6ea8ff;
+  --teal:   #4ad6c4;
+  --violet: #b08cff;
+  --amber:  #f3b657;
+  --slate:  #9aa0b0;
+  --navy:   #e7e7ea;
+
+  /* clean silver display text, hairline underline */
+  --grad-brand: linear-gradient(100deg, #ffffff, #c9c9d2);
+  --grad-line:  linear-gradient(90deg, #e7e7ea, #6e6e78);
+
+  --shadow:    0 1px 0 rgba(255, 255, 255, 0.03), 0 10px 30px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 2px 0 rgba(255, 255, 255, 0.04), 0 22px 50px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 30px 70px rgba(0, 0, 0, 0.7);
+
+  --mesh:
+    radial-gradient(60% 50% at 20% 0%, #17171c 0%, transparent 60%),
+    linear-gradient(180deg, #0c0c0f, #09090c);
+  --blob-opacity: 0;
+  --scrim: rgba(0, 0, 0, 0.62);
+}
+
+/* ============================================================
+   THEME: Cyber  (미래지향 가상공간 · 기계적 HUD)
+   ============================================================ */
+:root[data-theme="cyber"] {
+  --radius-card: 6px;
+  --radius-md: 5px;
+  --radius-sm: 3px;
+
+  --bg: #05080f;
+  --surface: rgba(10, 18, 30, 0.55);
+  --surface-solid: #0a1320;
+  --surface-2: rgba(0, 229, 255, 0.06);
+  --glass-brd: rgba(0, 229, 255, 0.30);
+  --glass-blur: 10px;
+  color-scheme: dark;
+
+  /* mechanical mono chrome */
+  --font-display: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "Pretendard", monospace;
+  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, monospace;
+
+  --fg: #cfeefe;
+  --ink: #eafcff;
+  --ink-strong: #ffffff;
+  --muted: #5f8aa3;
+  --border: rgba(0, 229, 255, 0.18);
+
+  --accent: #00e5ff;
+  --teal:   #27ffd0;
+  --violet: #b06bff;
+  --amber:  #ffd24a;
+  --slate:  #6f9fbf;
+  --navy:   #00e5ff;
+
+  --grad-brand: linear-gradient(100deg, #00e5ff, #27ffd0 60%, #7df9ff);
+  --grad-line:  linear-gradient(90deg, #00e5ff, #27ffd0);
+
+  --shadow:    0 0 0 1px rgba(0, 229, 255, 0.12), 0 0 22px rgba(0, 229, 255, 0.10);
+  --shadow-lg: 0 0 0 1px rgba(0, 229, 255, 0.25), 0 0 34px rgba(0, 229, 255, 0.22);
+  --shadow-pop: 0 0 60px rgba(0, 229, 255, 0.28);
+
+  /* virtual-space grid + dark void */
+  --mesh:
+    linear-gradient(rgba(0, 229, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 229, 255, 0.07) 1px, transparent 1px),
+    radial-gradient(60% 50% at 50% 0%, #0a1a2e 0%, transparent 60%),
+    linear-gradient(180deg, #05080f, #04060c);
+  --blob-1: #00e5ff;
+  --blob-2: #b06bff;
+  --blob-3: #27ffd0;
+  --blob-opacity: 0.22;
+  --scrim: rgba(2, 6, 12, 0.62);
+}
+
+/* ------------------------------------------------------------
+   Light themes — inherit Aurora's glass/blob/card structure,
+   only recolour the chrome (bg, mesh, blobs, brand, text).
+   ------------------------------------------------------------ */
+
+/* Sunset — 따뜻한 코랄/골드 */
+:root[data-theme="sunset"] {
+  color-scheme: light;
+  --bg: #fff4ec;
+  --fg: #4a2f28; --ink: #3a241e; --muted: #9c7a6e;
+  --border: rgba(200, 150, 130, 0.28);
+  --grad-brand: linear-gradient(100deg, #ff7a59, #ffb04a 55%, #ff5e8a);
+  --grad-line:  linear-gradient(90deg, #ff7a59, #ffb04a);
+  --mesh:
+    radial-gradient(60% 50% at 15% 12%, #ffd6bf 0%, transparent 60%),
+    radial-gradient(55% 45% at 88% 18%, #ffc8d6 0%, transparent 60%),
+    radial-gradient(60% 60% at 75% 92%, #ffe6c2 0%, transparent 60%),
+    linear-gradient(135deg, #fff4ec, #fff0f3);
+  --blob-1: #ffb899; --blob-2: #ff9ec0; --blob-3: #ffd49a; --blob-opacity: 0.5;
+  --scrim: rgba(60, 36, 30, 0.28);
+}
+
+/* Forest — 세이지 그린 */
+:root[data-theme="forest"] {
+  color-scheme: light;
+  --bg: #f1f5ee;
+  --fg: #27332a; --ink: #1c2a20; --muted: #6f7d6e;
+  --border: rgba(120, 150, 120, 0.28);
+  --grad-brand: linear-gradient(100deg, #2f9e6f, #7cb342 60%, #3aa6a0);
+  --grad-line:  linear-gradient(90deg, #2f9e6f, #7cb342);
+  --mesh:
+    radial-gradient(60% 50% at 15% 12%, #cfe8cf 0%, transparent 60%),
+    radial-gradient(55% 45% at 88% 18%, #d8ecc0 0%, transparent 60%),
+    radial-gradient(60% 60% at 75% 92%, #cfe8df 0%, transparent 60%),
+    linear-gradient(135deg, #f1f5ee, #eef4ef);
+  --blob-1: #a8d5a2; --blob-2: #c5e0a0; --blob-3: #a0d8c8; --blob-opacity: 0.5;
+  --scrim: rgba(28, 42, 32, 0.28);
+}
+
+/* Rose — 벚꽃 핑크 */
+:root[data-theme="rose"] {
+  color-scheme: light;
+  --bg: #fff1f5;
+  --fg: #4a2a38; --ink: #3a1f2c; --muted: #a87f90;
+  --border: rgba(220, 150, 180, 0.28);
+  --grad-brand: linear-gradient(100deg, #ff5e8a, #ff8fb3 55%, #c86be0);
+  --grad-line:  linear-gradient(90deg, #ff5e8a, #c86be0);
+  --mesh:
+    radial-gradient(60% 50% at 15% 12%, #ffd0e0 0%, transparent 60%),
+    radial-gradient(55% 45% at 88% 18%, #f3d0ff 0%, transparent 60%),
+    radial-gradient(60% 60% at 75% 92%, #ffd9e6 0%, transparent 60%),
+    linear-gradient(135deg, #fff1f5, #fdf0ff);
+  --blob-1: #ffb3cd; --blob-2: #e6b3ff; --blob-3: #ffc8dc; --blob-opacity: 0.5;
+  --scrim: rgba(58, 31, 44, 0.26);
+}
+
+/* Ocean — 마린 블루 */
+:root[data-theme="ocean"] {
+  color-scheme: light;
+  --bg: #eef4fb;
+  --fg: #1f3346; --ink: #16293a; --muted: #5f7d96;
+  --border: rgba(120, 160, 200, 0.30);
+  --grad-brand: linear-gradient(100deg, #0a84ff, #22b6c8 60%, #3a6df0);
+  --grad-line:  linear-gradient(90deg, #0a84ff, #22b6c8);
+  --mesh:
+    radial-gradient(60% 50% at 15% 12%, #bfe0ff 0%, transparent 60%),
+    radial-gradient(55% 45% at 88% 18%, #bff0ee 0%, transparent 60%),
+    radial-gradient(60% 60% at 75% 92%, #cdd9ff 0%, transparent 60%),
+    linear-gradient(135deg, #eef4fb, #ecf6fb);
+  --blob-1: #9ccbff; --blob-2: #8fe6dd; --blob-3: #a9c2ff; --blob-opacity: 0.52;
+  --scrim: rgba(22, 41, 58, 0.30);
+}
+
+/* ------------------------------------------------------------
+   Dark themes (need full surface/text/shadow overrides)
+   ------------------------------------------------------------ */
+
+/* Midnight — 인디고/퍼플 다크 */
+:root[data-theme="midnight"] {
+  color-scheme: dark;
+  --bg: #0e0b1a;
+  --surface: rgba(28, 22, 48, 0.55);
+  --surface-solid: #1a1530;
+  --surface-2: rgba(160, 130, 255, 0.07);
+  --glass-brd: rgba(160, 130, 255, 0.22);
+  --glass-blur: 14px;
+  --fg: #e6e1ff; --ink: #f3f0ff; --ink-strong: #ffffff; --muted: #9a93c4;
+  --border: rgba(160, 130, 255, 0.18);
+  --accent: #8b9dff; --teal: #5fe0d0; --violet: #c08bff; --amber: #ffcf6b; --slate: #9a93c4; --navy: #c08bff;
+  --grad-brand: linear-gradient(100deg, #a78bff, #7b9dff 60%, #c08bff);
+  --grad-line:  linear-gradient(90deg, #a78bff, #7b9dff);
+  --shadow:    0 0 0 1px rgba(160, 130, 255, 0.08), 0 18px 44px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 0 0 1px rgba(160, 130, 255, 0.18), 0 26px 60px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 30px 70px rgba(0, 0, 0, 0.7);
+  --mesh:
+    radial-gradient(60% 50% at 15% 10%, #241a45 0%, transparent 60%),
+    radial-gradient(55% 45% at 88% 18%, #2a1c46 0%, transparent 60%),
+    linear-gradient(160deg, #0e0b1a, #0b0816);
+  --blob-1: #7a5cff; --blob-2: #b06bff; --blob-3: #5c7bff; --blob-opacity: 0.30;
+  --scrim: rgba(6, 4, 16, 0.6);
+}
+
+/* Luxe — 차콜 + 골드 */
+:root[data-theme="luxe"] {
+  color-scheme: dark;
+  --bg: #14110c;
+  --surface: rgba(34, 30, 22, 0.6);
+  --surface-solid: #1d1a12;
+  --surface-2: rgba(212, 175, 90, 0.07);
+  --glass-brd: rgba(212, 175, 90, 0.24);
+  --glass-blur: 8px;
+  --fg: #ece3cf; --ink: #f7efd9; --ink-strong: #ffffff; --muted: #a99a78;
+  --border: rgba(212, 175, 90, 0.20);
+  --accent: #d9b25a; --teal: #bfae7a; --violet: #c9a8e0; --amber: #e8c25a; --slate: #b7a98a; --navy: #d9b25a;
+  --grad-brand: linear-gradient(100deg, #e8c878, #d4af5a 55%, #f0d98a);
+  --grad-line:  linear-gradient(90deg, #e8c878, #d4af5a);
+  --shadow:    0 0 0 1px rgba(212, 175, 90, 0.10), 0 18px 44px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 0 0 1px rgba(212, 175, 90, 0.22), 0 26px 60px rgba(0, 0, 0, 0.65);
+  --shadow-pop: 0 30px 70px rgba(0, 0, 0, 0.72);
+  --mesh:
+    radial-gradient(60% 50% at 20% 0%, #241f15 0%, transparent 60%),
+    linear-gradient(180deg, #14110c, #100d09);
+  --blob-opacity: 0;
+  --scrim: rgba(8, 6, 3, 0.62);
 }
 
 /* ---------- category accent mapping ---------- */
@@ -334,7 +560,7 @@ button { font-family: inherit; }
 .menu-sec-hd { padding: 5px 12px 2px; font-size: 14px; font-weight: 800; letter-spacing: .05em; color: var(--muted); text-transform: uppercase; margin-top: 3px; }
 
 /* theme switcher (settings) */
-.theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 8px 2px; }
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 4px 8px 2px; }
 .theme-swatch {
   position: relative; border-radius: 14px; border: 1.5px solid var(--border);
   padding: 10px; cursor: pointer; text-align: left; background: var(--surface-solid);
@@ -491,6 +717,90 @@ button { font-family: inherit; }
 /* point-colour hover accent on cards */
 [data-theme="editorial"] .ccard:hover .card-face .amt,
 [data-theme="editorial"] .ccard:hover .cname { color: var(--pt); }
+
+/* ============================================================
+   Noir — dark minimal overrides
+   ============================================================ */
+[data-theme="noir"] .aurora-blob { display: none; }
+[data-theme="noir"] .card-face,
+[data-theme="noir"] .rail-face,
+[data-theme="noir"] .detail-panel,
+[data-theme="noir"] .modal-card,
+[data-theme="noir"] .tbtn,
+[data-theme="noir"] .back-btn,
+[data-theme="noir"] .pd-fld,
+[data-theme="noir"] .pd-seg,
+[data-theme="noir"] .pd-ghost,
+[data-theme="noir"] .meta-chip,
+[data-theme="noir"] .x { backdrop-filter: none; }
+/* subtle (not blown-out) top rim on dark glass */
+[data-theme="noir"] .card-face::before {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.12), transparent 52%);
+}
+/* clean silver brand mark */
+[data-theme="noir"] .brand-mark {
+  background: linear-gradient(135deg, #ffffff, #9aa0b0); box-shadow: none;
+}
+/* tint the category icon chips on dark instead of near-white mix */
+[data-theme="noir"] .card-face .emblem,
+[data-theme="noir"] .rail-face .emblem {
+  background: color-mix(in srgb, var(--cat) 22%, #161619);
+}
+
+/* ============================================================
+   Cyber — futuristic HUD overrides
+   ============================================================ */
+/* grid background needs a cell size for the two line layers */
+[data-theme="cyber"] .aurora-bg { background-size: 42px 42px, 42px 42px, 100% 100%, 100% 100%; }
+[data-theme="cyber"] .aurora-blob { mix-blend-mode: screen; }
+/* neon edge on glass panels */
+[data-theme="cyber"] .card-face::before {
+  background: linear-gradient(140deg, rgba(0, 229, 255, 0.55), transparent 55%);
+}
+/* glowing display total + names */
+[data-theme="cyber"] .grand { filter: drop-shadow(0 0 18px rgba(0, 229, 255, 0.45)); }
+[data-theme="cyber"] .cname { letter-spacing: 0; }
+[data-theme="cyber"] .brand-mark {
+  background: conic-gradient(from 210deg, #00e5ff, #b06bff, #00e5ff);
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.8); border-radius: 4px;
+}
+/* tint icon chips for dark ground */
+[data-theme="cyber"] .card-face .emblem,
+[data-theme="cyber"] .rail-face .emblem {
+  background: color-mix(in srgb, var(--cat) 20%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--cat) 40%, transparent);
+}
+
+/* ============================================================
+   Midnight & Luxe — dark overrides
+   ============================================================ */
+[data-theme="midnight"] .aurora-blob { mix-blend-mode: screen; }
+[data-theme="luxe"] .aurora-blob { display: none; }
+
+[data-theme="midnight"] .card-face::before {
+  background: linear-gradient(140deg, rgba(180, 150, 255, 0.40), transparent 55%);
+}
+[data-theme="luxe"] .card-face::before {
+  background: linear-gradient(140deg, rgba(232, 200, 120, 0.45), transparent 55%);
+}
+
+[data-theme="midnight"] .brand-mark {
+  background: conic-gradient(from 210deg, #a78bff, #5fe0d0, #a78bff);
+  box-shadow: 0 0 18px rgba(150, 120, 255, 0.7);
+}
+[data-theme="luxe"] .brand-mark {
+  background: linear-gradient(135deg, #f0d98a, #caa44a);
+  box-shadow: 0 0 16px rgba(212, 175, 90, 0.5);
+}
+
+[data-theme="midnight"] .card-face .emblem,
+[data-theme="midnight"] .rail-face .emblem {
+  background: color-mix(in srgb, var(--cat) 24%, #18142a);
+}
+[data-theme="luxe"] .card-face .emblem,
+[data-theme="luxe"] .rail-face .emblem {
+  background: color-mix(in srgb, var(--cat) 22%, #1d1a12);
+}
 
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; }

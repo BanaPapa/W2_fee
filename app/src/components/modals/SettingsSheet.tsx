@@ -15,10 +15,11 @@ export default function SettingsSheet({ open, onClose }: { open: boolean; onClos
       onClose={onClose}
       title="설정"
       sub={`${project.title} · ${project.pm}`}
-      width={320}
-      className="!p-4"
+      widthCss="50vw"
+      heightCss="50vh"
+      className="!p-5"
     >
-      <div className="mt-1.5 flex flex-col">
+      <div className="mt-1.5 flex-1 min-h-0 overflow-y-auto flex flex-col">
         <div className="menu-sec-hd">테마</div>
         <div className="theme-grid">
           {THEMES.map((t) => (
