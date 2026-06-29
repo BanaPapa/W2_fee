@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef } from 'react'
 import Modal from '../ui/Modal'
 import {
   useProjectStore, toDate, toIso,
@@ -14,91 +14,39 @@ const SEG_COLOR: Record<string, string> = {
   amber:  'var(--amber)',
 }
 
-const MARKER_COLOR = 'rgba(255,255,255,0.95)'
+const SEG_GRAD: Record<string, string> = {
+  teal:   'linear-gradient(100deg,#2fcdb8,#23b8a6)',
+  accent: 'linear-gradient(100deg,#6fa0f5,#5b8def)',
+  violet: 'linear-gradient(100deg,#a986f2,#9b6cf0)',
+  slate:  'linear-gradient(100deg,#8e96b4,#7b86a8)',
+  amber:  'linear-gradient(100deg,#efb45c,#e8a33d)',
+}
 
 // legacy keys that old persisted data might still contain
 const HIDDEN_KEYS = new Set(['special', 'rank2', 'lottery'])
 
-const TRACK_H    = 44
-const FLAG_ABOVE = 50
-const OVERVIEW_H = 24
-const ROW_GAP    = 50
+const TRACK_H    = 46
+const OVERVIEW_H = 30
+const ROW_GAP    = 40
 
-/* ── MarkerTick ──────────────────────────────────────────────────── */
-function MarkerTick({ pct, label, dateStr, draggable, onDragStart }: {
-  pct: number; label: string; dateStr: string
+/* ── MarkerTick — glass flag + stem + pin ────────────────────────── */
+function MarkerTick({ pct, label, dateStr, color, draggable, onDragStart }: {
+  pct: number; label: string; dateStr: string; color: string
   draggable?: boolean
   onDragStart?: (e: React.MouseEvent) => void
 }) {
-  const [hover, setHover] = useState(false)
   const clamped = Math.max(0, Math.min(100, pct))
-
   return (
     <div
-      style={{
-        position: 'absolute',
-        left: `${clamped}%`,
-        top: -FLAG_ABOVE, bottom: 0,
-        transform: 'translateX(-50%)',
-        pointerEvents: 'auto', zIndex: 20,
-      }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      className={`pd-mk${draggable ? ' drag' : ''}`}
+      style={{ left: `${clamped}%`, color }}
     >
-      {/* date */}
-      <div style={{
-        position: 'absolute', top: 2, left: '50%',
-        transform: 'translateX(-50%)',
-        fontSize: 15, fontFamily: 'monospace', fontWeight: 700,
-        color: MARKER_COLOR, whiteSpace: 'nowrap',
-        textShadow: '0 1px 3px rgba(0,0,0,0.9)',
-        pointerEvents: 'none',
-      }}>
-        {dateStr.slice(5)}
+      <div className="flag">
+        <div className="d">{dateStr.slice(5)}</div>
+        <div className="l">{label}</div>
       </div>
-      {/* label */}
-      <div style={{
-        position: 'absolute', top: 19, left: '50%',
-        transform: 'translateX(-50%)',
-        fontSize: 14, fontFamily: 'monospace', fontWeight: 600,
-        color: MARKER_COLOR, whiteSpace: 'nowrap',
-        textShadow: '0 1px 2px rgba(0,0,0,0.85)',
-        background: 'rgba(0,0,0,0.35)', borderRadius: 3, padding: '0 4px',
-        pointerEvents: 'none',
-      }}>
-        {label}
-      </div>
-      {/* circle — drag handle */}
-      <div
-        style={{
-          position: 'absolute', top: 32, left: '50%',
-          width: 14, height: 14, borderRadius: '50%',
-          background: MARKER_COLOR, border: '1.5px solid rgba(255,255,255,0.55)',
-          transform: 'translate(-50%, 0)',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
-          cursor: draggable ? 'ew-resize' : 'default',
-        }}
-        onMouseDown={draggable ? onDragStart : undefined}
-      />
-      {/* stem */}
-      <div style={{
-        position: 'absolute', top: 46, bottom: 0, left: '50%',
-        width: 2, background: MARKER_COLOR,
-        transform: 'translateX(-50%)', opacity: 0.85,
-      }} />
-      {/* tooltip */}
-      {hover && (
-        <div style={{
-          position: 'absolute', top: 0, left: 'calc(50% + 14px)',
-          background: 'var(--surface-2)', border: '1px solid var(--border)',
-          borderRadius: 7, padding: '4px 10px',
-          fontSize: 12, fontFamily: 'monospace', whiteSpace: 'nowrap',
-          color: 'var(--fg)', zIndex: 200, pointerEvents: 'none',
-          boxShadow: '0 3px 10px rgba(0,0,0,0.25)',
-        }}>
-          {label}: {dateStr.slice(5)}
-        </div>
-      )}
+      <div className="stem" />
+      <div className="pin" onMouseDown={draggable ? onDragStart : undefined} />
     </div>
   )
 }
@@ -252,76 +200,45 @@ export default function PeriodStageModal({ open, onClose }: { open: boolean; onC
   const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
   const headerControls = (
-    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, flex: 1 }}>
+    <div className="pd-toolbar">
       {/* 기간 뱃지 */}
-      <span style={{
-        fontSize: 15, fontWeight: 600, padding: '3px 10px', borderRadius: 7,
-        background: 'color-mix(in oklch,var(--accent) 12%,transparent)',
-        color: 'var(--accent)', whiteSpace: 'nowrap', flexShrink: 0,
-      }}>
-        총 {totalDays}일 · {totalMonths}개월
-      </span>
+      <span className="pd-badge">총 {totalDays}일 · {totalMonths}개월</span>
 
       {/* 시작/종료 */}
-      <label style={{ fontSize: 14, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+      <label className="pd-fld">
         시작
-        <input className="field-input" style={{ fontSize: 13, padding: '2px 5px' }} type="date"
-          value={periodStart} onChange={e => setPeriod(e.target.value, periodEnd)} />
+        <input type="date" value={periodStart} onChange={e => setPeriod(e.target.value, periodEnd)} />
       </label>
-      <label style={{ fontSize: 14, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+      <label className="pd-fld">
         종료
-        <input className="field-input" style={{ fontSize: 13, padding: '2px 5px' }} type="date"
-          value={periodEnd} onChange={e => setPeriod(periodStart, e.target.value)} />
+        <input type="date" value={periodEnd} onChange={e => setPeriod(periodStart, e.target.value)} />
       </label>
 
       {/* 균등배분 */}
-      <button style={{ fontSize: 13, padding: '2px 8px', flexShrink: 0 }}
-        className="rounded border border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
-        onClick={resetStages}>
-        균등배분
-      </button>
+      <button className="pd-ghost" onClick={resetStages}>균등배분</button>
 
-      {/* 구분 */}
-      <span style={{ width: 1, height: 20, background: 'var(--border)', flexShrink: 0 }} />
+      <span className="pd-divider" />
 
       {/* 오픈일 */}
       {openKd && (
-        <label style={{ fontSize: 14, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+        <label className="pd-fld">
           오픈일
-          <input className="field-input" style={{ fontSize: 13, padding: '2px 5px' }} type="date"
-            value={openKd.date}
-            onChange={e => handleOpenDate(e.target.value)} />
-          <span style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--fg)' }}>
-            ({DOW[toDate(openKd.date).getDay()]})
-          </span>
+          <input type="date" value={openKd.date} onChange={e => handleOpenDate(e.target.value)} />
+          <b style={{ color: 'var(--ink)' }}>({DOW[toDate(openKd.date).getDay()]})</b>
         </label>
       )}
 
       {/* 오픈기간 3일/10일 토글 */}
-      <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+      <div className="pd-seg">
         {([3, 10] as const).map(d => (
-          <button key={d}
-            style={{ fontSize: 13, padding: '2px 8px' }}
-            className={`rounded border transition-colors ${
-              mainOpenDays === d
-                ? 'border-[var(--accent)] text-[var(--accent)] bg-[color-mix(in_oklch,var(--accent)_14%,transparent)]'
-                : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]'
-            }`}
-            onClick={() => setOpenDays(d)}>
+          <button key={d} className={mainOpenDays === d ? 'on' : ''} onClick={() => setOpenDays(d)}>
             {d}일
           </button>
         ))}
       </div>
 
       {/* 무순위 ON/OFF */}
-      <button
-        style={{ fontSize: 13, padding: '2px 10px', flexShrink: 0 }}
-        className={`rounded border transition-colors ${
-          noOrder?.enabled
-            ? 'border-[var(--violet)] text-[var(--violet)] bg-[color-mix(in_oklch,var(--violet)_12%,transparent)]'
-            : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--violet)] hover:text-[var(--violet)]'
-        }`}
-        onClick={toggleNoOrder}>
+      <button className={`pd-ghost vio${noOrder?.enabled ? ' on' : ''}`} onClick={toggleNoOrder}>
         무순위 {noOrder?.enabled ? 'ON' : 'OFF'}
       </button>
     </div>
@@ -333,46 +250,32 @@ export default function PeriodStageModal({ open, onClose }: { open: boolean; onC
       disableBackdropClose headerControls={headerControls}>
 
       <div className="flex-1 flex flex-col overflow-y-auto"
-        style={{ minHeight: 0, padding: '40px 24px 10px' }}>
+        style={{ minHeight: 0, padding: '30px 26px 18px' }}>
 
         {/* ── 전체 일정 개요 ──────────────────────────────────── */}
-        <div style={{ marginBottom: 144 }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 5, fontFamily: 'monospace' }}>
-            전체 일정
-          </div>
-          <div ref={overviewRef} className="relative rounded-xl shrink-0"
-            style={{ height: OVERVIEW_H, background: 'var(--surface-2)' }}>
+        <div style={{ marginBottom: 60 }}>
+          <div className="pd-lab">전체 일정</div>
+          <div ref={overviewRef} className="pd-ribbon" style={{ position: 'relative', height: OVERVIEW_H }}>
             {overviewStages.map(s => {
               const sMs   = toDate(s.start).getTime()
               const eMs   = toDate(s.end).getTime()
               const left  = ((sMs - startMs) / span) * 100
               const width = ((eMs - sMs) / span) * 100
               return (
-                <div key={s.id} style={{
+                <div key={s.id} className="seg-fill" style={{
                   position: 'absolute',
                   left: `${left}%`, width: `${Math.max(0.4, width)}%`,
-                  top: 2, bottom: 2,
-                  background: SEG_COLOR[s.color], borderRadius: 4,
-                  opacity: 0.88, overflow: 'hidden',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  pointerEvents: 'none',
+                  top: 0, bottom: 0,
+                  background: SEG_GRAD[s.color],
                 }}>
-                  <span style={{ fontSize: 13, fontFamily: 'monospace', color: 'rgba(255,255,255,0.95)', whiteSpace: 'nowrap' }}>
-                    {s.name}
-                  </span>
+                  {s.name}
                 </div>
               )
             })}
             {ovBoundaries.map(({ stageIdx, nextStageIdx, pct }, i) => (
-              <div key={i} style={{
-                position: 'absolute',
-                left: `${pct}%`, top: 0, bottom: 0,
-                width: 14, transform: 'translateX(-50%)',
-                cursor: 'ew-resize', zIndex: 10,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-              onMouseDown={e => startOvDrag(e, stageIdx, nextStageIdx)}>
-                <div style={{ width: 3, height: '55%', background: 'rgba(255,255,255,0.7)', borderRadius: 2 }} />
+              <div key={i} className="seg-handle" style={{ left: `${pct}%` }}
+                onMouseDown={e => startOvDrag(e, stageIdx, nextStageIdx)}>
+                <i />
               </div>
             ))}
           </div>
@@ -397,47 +300,37 @@ export default function PeriodStageModal({ open, onClose }: { open: boolean; onC
 
             return (
               // z-index: i+1 ensures overflowing markers are above the row above them
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, position: 'relative', zIndex: i + 1 }}>
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 16, position: 'relative', zIndex: i + 1 }}>
 
                 {/* 이름 + 일수 열 */}
-                <div style={{ width: 96, flexShrink: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                <div style={{ width: 104, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
                     <span style={{
                       width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
                       background: isDisabled ? 'var(--border)' : barColor,
                     }} />
                     <span style={{
-                      fontSize: 20, fontWeight: 700,
-                      color: isDisabled ? 'var(--muted)' : 'var(--fg)',
-                      textDecoration: isDisabled ? 'line-through' : 'none',
+                      fontSize: 18, fontWeight: 800,
+                      color: isDisabled ? 'var(--muted)' : 'var(--ink)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {s.name}
                     </span>
                   </div>
-                  <span style={{ fontSize: 17, color: 'var(--muted)', fontFamily: 'monospace', paddingLeft: 16 }}>
+                  <span style={{ fontSize: 14, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums', paddingLeft: 17 }}>
                     {days}일
                   </span>
                 </div>
 
                 <div
                   ref={el => { if (el) trackRefs.current.set(i, el); else trackRefs.current.delete(i) }}
-                  className="relative flex-1 rounded-xl select-none"
-                  style={{
-                    height: TRACK_H,
-                    background: isDisabled
-                      ? 'color-mix(in oklch,var(--surface-2) 55%,transparent)'
-                      : 'var(--surface-2)',
-                    overflow: 'visible',
-                  }}>
+                  className={`pd-track select-none${isDisabled ? ' dis' : ''}`}
+                  style={{ height: TRACK_H }}>
 
                   {isDisabled ? (
-                    <div style={{
-                      position: 'absolute', inset: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 14, color: 'var(--muted)',
-                    }}>
+                    <div className="pd-off">
                       비활성
+                      <button className="add" onClick={toggleNoOrder}>+ 활성화</button>
                     </div>
                   ) : (
                     <>
@@ -446,60 +339,32 @@ export default function PeriodStageModal({ open, onClose }: { open: boolean; onC
                         const openPct  = pctOf(toDate(stageOpenKd.date).getTime())
                         const wPct     = (openDays * MS_DAY / stageSpan) * 100
                         return (
-                          <div style={{
-                            position: 'absolute',
+                          <div className="pd-openhl" style={{
                             left: `${Math.max(0, openPct)}%`,
                             width: `${Math.max(0, wPct)}%`,
-                            top: 3, bottom: 3,
-                            background: 'rgba(255,255,255,0.2)',
-                            borderRadius: 6, pointerEvents: 'none', zIndex: 5,
                           }} />
                         )
                       })()}
 
                       {/* 바 */}
-                      <div style={{
-                        position: 'absolute', top: 1, bottom: 1, left: 0, right: 0,
-                        borderRadius: 10, background: barColor, opacity: 0.9,
-                        zIndex: 10, overflow: 'hidden',
-                      }}>
-
-                        {/* start / end labels (when no markers) */}
+                      <div className="pd-bar" style={{ left: 0, right: 0, background: SEG_GRAD[s.color] }}>
                         {!hasMarkers && (
                           <>
-                            <span style={{
-                              position: 'absolute', left: 10, top: '50%',
-                              transform: 'translateY(-50%)',
-                              fontSize: 17, fontFamily: 'monospace', fontWeight: 700,
-                              color: 'rgba(255,255,255,0.9)',
-                              textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                              pointerEvents: 'none',
-                            }}>{s.start.slice(5)}</span>
-                            <span style={{
-                              position: 'absolute', right: 10, top: '50%',
-                              transform: 'translateY(-50%)',
-                              fontSize: 17, fontFamily: 'monospace', fontWeight: 700,
-                              color: 'rgba(255,255,255,0.9)',
-                              textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                              pointerEvents: 'none',
-                            }}>{s.end.slice(5)}</span>
+                            <span className="edge" style={{ left: 12 }}>{s.start.slice(5)}</span>
+                            <span className="edge" style={{ right: 12 }}>{s.end.slice(5)}</span>
                           </>
                         )}
-
                       </div>
 
                       {/* 마커 */}
                       {hasMarkers && (
-                        <div style={{
-                          position: 'absolute', inset: 0,
-                          zIndex: 15, pointerEvents: 'none', overflow: 'visible',
-                        }}>
+                        <div style={{ position: 'absolute', inset: 0, zIndex: 15, pointerEvents: 'none', overflow: 'visible' }}>
                           {/* 사전영업 서브기간 시작점 (draggable) */}
                           {isPresales && s.subPeriods?.map(sp => (
                             <MarkerTick key={sp.key}
                               pct={pctOf(toDate(sp.start).getTime())}
                               label={sp.label}
-
+                              color={barColor}
                               dateStr={sp.start}
                               draggable
                               onDragStart={e => startMarkerDrag(e, 'sub', i, sp.key, sMs, stageSpan, eMs)}
@@ -507,12 +372,7 @@ export default function PeriodStageModal({ open, onClose }: { open: boolean; onC
                           ))}
                           {/* 사전영업 종료일 = 모집공고일 (고정) */}
                           {isPresales && (
-                            <MarkerTick
-                              pct={100}
-                              label="모집공고일"
-
-                              dateStr={s.end}
-                            />
+                            <MarkerTick pct={100} label="모집공고일" color={barColor} dateStr={s.end} />
                           )}
 
                           {/* 본영업 키 날짜 — 모두 non-draggable (오픈일/3일10일 입력으로만 변경) */}
@@ -522,7 +382,7 @@ export default function PeriodStageModal({ open, onClose }: { open: boolean; onC
                               <MarkerTick key={kd.key}
                                 pct={pctOf(toDate(kd.date).getTime())}
                                 label={kd.label}
-  
+                                color={barColor}
                                 dateStr={kd.date}
                               />
                             ))}

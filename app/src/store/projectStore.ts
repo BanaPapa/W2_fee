@@ -158,7 +158,7 @@ export const useProjectStore = create<ProjectState>()(
           const enIdx = state.stages.map((s, i) => s.enabled ? i : -1).filter(i => i >= 0)
           const n = enIdx.length
           let ei = 0
-          const stages = state.stages.map((s, i) => {
+          const stages = state.stages.map((s) => {
             if (!s.enabled) return s
             const sRatio = ei / n
             const eRatio = (ei + 1) / n

@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import type { CategoryMeta } from '../../data/categories'
 import { won } from '../../lib/format'
+import { useCountUp } from '../../lib/useCountUp'
 
 interface Props {
   meta: CategoryMeta
@@ -30,6 +31,7 @@ export default function CategoryCard({
 }: Props) {
   const { Icon } = meta
   const split = mode === 'split'
+  const animatedAmount = useCountUp(amount)
 
   // single-face rotateY swing — ported from the `railFlip` keyframe in index.html
   const flipKeyframes = flipDir === 1 ? [0, 90, -6, 0] : [0, -90, 6, 0]
@@ -54,6 +56,8 @@ export default function CategoryCard({
           ? { duration: 0 }
           : { type: 'spring', stiffness: 280, damping: 32, delay: order * STAGGER },
       }}
+      whileHover={reduceMotion ? undefined : { y: split ? -3 : -8 }}
+      whileTap={{ scale: 0.985 }}
       style={{
         perspective: 1400,
         zIndex: 50 - order,
@@ -80,7 +84,7 @@ export default function CategoryCard({
           <div className="cname">{meta.name}</div>
           {!split && <div className="cnote">{meta.note}</div>}
         </div>
-        <div className="amt tabular">{won(amount)}</div>
+        <div className="amt tabular">{won(animatedAmount)}</div>
       </motion.div>
     </motion.div>
   )

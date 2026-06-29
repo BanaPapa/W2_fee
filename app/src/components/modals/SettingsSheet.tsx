@@ -1,10 +1,13 @@
 import Modal from '../ui/Modal'
 import { useProjectStore } from '../../store/projectStore'
 import { useUIStore } from '../../store/uiStore'
+import { useThemeStore, THEMES } from '../../store/themeStore'
 
 export default function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const project = useProjectStore((s) => s.project)
   const openModal = useUIStore((s) => s.openModal)
+  const theme = useThemeStore((s) => s.theme)
+  const setTheme = useThemeStore((s) => s.setTheme)
 
   return (
     <Modal
@@ -16,6 +19,23 @@ export default function SettingsSheet({ open, onClose }: { open: boolean; onClos
       className="!p-4"
     >
       <div className="mt-1.5 flex flex-col">
+        <div className="menu-sec-hd">테마</div>
+        <div className="theme-grid">
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              className={`theme-swatch${theme === t.id ? ' on' : ''}${t.available ? '' : ' disabled'}`}
+              disabled={!t.available}
+              onClick={() => t.available && setTheme(t.id)}
+            >
+              {!t.available && <span className="soon">준비 중</span>}
+              <div className="preview" style={{ background: t.preview }} />
+              <div className="tname">{t.name}</div>
+              <div className="tnote">{t.note}</div>
+            </button>
+          ))}
+        </div>
+        <div className="menu-sep" />
         <div className="menu-sec-hd">프로젝트</div>
         <button
           className="menu-item"

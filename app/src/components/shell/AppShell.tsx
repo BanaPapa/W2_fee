@@ -105,6 +105,12 @@ export default function AppShell() {
           : 'mx-auto w-full max-w-[1620px] min-h-screen px-7 pt-6 pb-[72px] flex flex-col'
       }
     >
+      {/* aurora background — fixed mesh + floating colour blobs */}
+      <div className="aurora-bg" aria-hidden />
+      <div className="aurora-blob b1" aria-hidden />
+      <div className="aurora-blob b2" aria-hidden />
+      <div className="aurora-blob b3" aria-hidden />
+
       <h1 className="sr-only">강남 리버파크 분양 제안 종합 현황</h1>
       <Topbar mode={mode} onBack={() => exit(true)} />
 
