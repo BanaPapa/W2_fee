@@ -1,13 +1,20 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 import { ppdP } from '../lib/schedule'
 import type { Role } from './laborStore'
+import { api } from '../../convex/_generated/api'
+import { convexClient } from '../lib/convexClient'
+import { debounce } from '../lib/debounce'
 
-export interface MealState {
+export interface MealDoc {
   lunchPerDay: number
   dinnerPerDay: number
   woesing: number
   dinnerRoleOverrides: Record<string, boolean>
+}
+
+export interface MealState extends MealDoc {
+  hydrated: boolean
+  hydrate: (doc: MealDoc) => void
   setLunch: (v: number) => void
   setDinner: (v: number) => void
   setWoesing: (v: number) => void
@@ -16,12 +23,13 @@ export interface MealState {
 }
 
 export const useMealStore = create<MealState>()(
-  persist(
     (set) => ({
+      hydrated: false,
       lunchPerDay: 9000,
       dinnerPerDay: 12000,
       woesing: 1000000,
       dinnerRoleOverrides: {},
+      hydrate: (doc) => set({ hydrated: true, ...doc }),
       setLunch: (v) => set({ lunchPerDay: v }),
       setDinner: (v) => set({ dinnerPerDay: v }),
       setWoesing: (v) => set({ woesing: v }),
@@ -29,9 +37,21 @@ export const useMealStore = create<MealState>()(
         set((s) => ({ dinnerRoleOverrides: { ...s.dinnerRoleOverrides, [name]: val } })),
       resetDinnerOverrides: () => set({ dinnerRoleOverrides: {} }),
     }),
-    { name: 'ec-meal' },
-  ),
 )
+
+const pushMeal = debounce((state: MealState) => {
+  convexClient.mutation(api.meal.set, {
+    lunchPerDay: state.lunchPerDay,
+    dinnerPerDay: state.dinnerPerDay,
+    woesing: state.woesing,
+    dinnerRoleOverrides: state.dinnerRoleOverrides,
+  })
+}, 400)
+
+useMealStore.subscribe((state, prev) => {
+  if (!prev.hydrated) return
+  pushMeal(state)
+})
 
 export const isDinnerRole = (role: Role, overrides: Record<string, boolean>): boolean => {
   if (role.name in overrides) return overrides[role.name]

@@ -1,8 +1,10 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 import type { Person } from '../lib/schedule'
 import { ppdP } from '../lib/schedule'
 import type { ExtraSlot } from './projectStore'
+import { api } from '../../convex/_generated/api'
+import { convexClient } from '../lib/convexClient'
+import { debounce } from '../lib/debounce'
 
 export type Section = 'planning' | 'sales' | 'other'
 
@@ -19,9 +21,16 @@ export interface Role {
   section: Section
 }
 
-interface LaborState {
+export interface LaborDoc {
   roles: Role[]
   sectionNames: Record<Section, string>
+}
+
+interface LaborState {
+  hydrated: boolean
+  roles: Role[]
+  sectionNames: Record<Section, string>
+  hydrate: (doc: LaborDoc) => void
   addRole: (section: Section) => void
   changeRoleSection: (i: number, section: Section) => void
   removeRole: (i: number) => void
@@ -74,10 +83,11 @@ const SEED: Role[] = [
 ]
 
 export const useLaborStore = create<LaborState>()(
-  persist(
     (set) => ({
+      hydrated: false,
       roles: SEED,
       sectionNames: { planning: '기획', sales: '영업', other: '기타' },
+      hydrate: (doc) => set({ hydrated: true, roles: doc.roles, sectionNames: doc.sectionNames }),
       addRole: (section) =>
         set((s) => {
           const count = s.roles.filter((r) => (r.section ?? 'planning') === section).length
@@ -131,9 +141,16 @@ export const useLaborStore = create<LaborState>()(
       renameSection: (section, name) =>
         set((s) => ({ sectionNames: { ...s.sectionNames, [section]: name } })),
     }),
-    { name: 'ec-labor' },
-  ),
 )
+
+const pushLabor = debounce((state: LaborState) => {
+  convexClient.mutation(api.labor.set, { roles: state.roles, sectionNames: state.sectionNames })
+}, 400)
+
+useLaborStore.subscribe((state, prev) => {
+  if (!prev.hydrated) return
+  pushLabor(state)
+})
 
 /* ---------- pure calc selectors ---------- */
 export const personExtrasDays = (p: Person, extras: ExtraSlot[]): number =>

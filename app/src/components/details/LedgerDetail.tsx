@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import type { StoreApi, UseBoundStore } from 'zustand'
 import DetailHeader from './DetailHeader'
-import { PlusIcon, TrashIcon } from '../icons'
+import { PlusIcon, TrashIcon, GripIcon } from '../icons'
 import { won } from '../../lib/format'
 import {
   type LedgerState,
@@ -10,18 +11,44 @@ import {
   ledgerTotal,
 } from '../../store/ledgerStore'
 
-type LedgerStore = UseBoundStore<StoreApi<LedgerState & { chips: string[] }>>
+function AmountInput({ value, onUpdate }: { value: number; onUpdate: (v: number) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [raw, setRaw] = useState('')
+  return (
+    <input
+      className="field-input w-[110px] text-right"
+      type="text"
+      inputMode="numeric"
+      value={editing ? raw : value.toLocaleString('ko-KR')}
+      onFocus={() => { setEditing(true); setRaw(String(value)) }}
+      onChange={(e) => {
+        const s = e.target.value.replace(/[^0-9]/g, '')
+        setRaw(s)
+        onUpdate(parseInt(s) || 0)
+      }}
+      onBlur={() => setEditing(false)}
+    />
+  )
+}
+
+type LedgerStore = UseBoundStore<StoreApi<LedgerState>>
 
 interface Props {
   title: string
   cId: string
   useStore: LedgerStore
+  /** show the quick-add chip row (default true) */
+  chips?: boolean
+  /** allow drag-and-drop reordering of rows (default false) */
+  sortable?: boolean
 }
 
-export default function LedgerDetail({ title, cId, useStore }: Props) {
+export default function LedgerDetail({ title, cId, useStore, chips = true, sortable = false }: Props) {
   const items = useStore((s) => s.items)
-  const chips = useStore((s) => s.chips)
-  const { addItem, updateItem, removeItem } = useStore()
+  const chipList = useStore((s) => s.chips)
+  const { addItem, updateItem, removeItem, reorderItem } = useStore()
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
 
   const total = ledgerTotal(items)
 
@@ -30,18 +57,27 @@ export default function LedgerDetail({ title, cId, useStore }: Props) {
       <DetailHeader title={title} subtitle={`${items.length}개 항목`} total={total} />
 
       <div className="px-6 pt-5 flex flex-col gap-4">
-        <div className="flex flex-wrap gap-2">
-          {chips.map((c) => (
-            <button key={c} className="pill" onClick={() => addItem({ name: c })}>
-              <PlusIcon style={{ width: 13, height: 13 }} /> {c}
+        {chips ? (
+          <div className="flex flex-wrap gap-2">
+            {chipList.map((c) => (
+              <button key={c} className="pill" onClick={() => addItem({ name: c })}>
+                <PlusIcon style={{ width: 13, height: 13 }} /> {c}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div>
+            <button className="pill" onClick={() => addItem()}>
+              <PlusIcon style={{ width: 13, height: 13 }} /> 항목 추가
             </button>
-          ))}
-        </div>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
               <tr>
+                {sortable && <th></th>}
                 <th>항목</th>
                 <th style={{ textAlign: 'right' }}>단가</th>
                 <th style={{ textAlign: 'right' }}>수량</th>
@@ -52,8 +88,23 @@ export default function LedgerDetail({ title, cId, useStore }: Props) {
               </tr>
             </thead>
             <tbody>
-              {items.map((it) => (
-                <Row key={it.id} it={it} onUpdate={(p) => updateItem(it.id, p)} onRemove={() => removeItem(it.id)} />
+              {items.map((it, i) => (
+                <Row
+                  key={it.id}
+                  it={it}
+                  onUpdate={(p) => updateItem(it.id, p)}
+                  onRemove={() => removeItem(it.id)}
+                  sortable={sortable}
+                  dragging={dragIdx === i}
+                  dragOver={dragOver === i}
+                  onDragStart={() => setDragIdx(i)}
+                  onDragEnd={() => { setDragIdx(null); setDragOver(null) }}
+                  onDragOverRow={() => { if (dragIdx !== null && dragIdx !== i) setDragOver(i) }}
+                  onDrop={() => {
+                    if (dragIdx !== null && dragIdx !== i) reorderItem(dragIdx, i)
+                    setDragIdx(null); setDragOver(null)
+                  }}
+                />
               ))}
             </tbody>
           </table>
@@ -67,14 +118,48 @@ function Row({
   it,
   onUpdate,
   onRemove,
+  sortable,
+  dragging,
+  dragOver,
+  onDragStart,
+  onDragEnd,
+  onDragOverRow,
+  onDrop,
 }: {
   it: LineItem
   onUpdate: (patch: Partial<LineItem>) => void
   onRemove: () => void
+  sortable: boolean
+  dragging: boolean
+  dragOver: boolean
+  onDragStart: () => void
+  onDragEnd: () => void
+  onDragOverRow: () => void
+  onDrop: () => void
 }) {
   const manual = it.type === '수동'
   return (
-    <tr>
+    <tr
+      style={{
+        opacity: dragging ? 0.4 : 1,
+        outline: dragOver ? '2px solid var(--accent)' : undefined,
+      }}
+      onDragOver={sortable ? (e) => { e.preventDefault(); onDragOverRow() } : undefined}
+      onDrop={sortable ? (e) => { e.preventDefault(); onDrop() } : undefined}
+    >
+      {sortable && (
+        <td className="w-[24px]">
+          <span
+            draggable
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            className="cursor-grab text-[var(--muted)] inline-flex"
+            aria-label="순서 변경"
+          >
+            <GripIcon style={{ width: 16, height: 16 }} />
+          </span>
+        </td>
+      )}
       <td>
         <input
           className="bg-transparent outline-none w-[160px] text-[17px]"
@@ -83,12 +168,7 @@ function Row({
         />
       </td>
       <td className="num">
-        <input
-          className="field-input w-[110px]"
-          type="number"
-          value={it.amount}
-          onChange={(e) => onUpdate({ amount: Number(e.target.value) || 0 })}
-        />
+        <AmountInput value={it.amount} onUpdate={(v) => onUpdate({ amount: v })} />
       </td>
       <td className="num">
         <input

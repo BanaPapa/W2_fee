@@ -85,11 +85,11 @@ function MealMatrix({
   const toggle = (sec: string) => setCollapsed((c) => ({ ...c, [sec]: !c[sec] }))
 
   if (activeMonthIdxs.length === 0) {
-    return <div className="text-center py-8 text-[15px]" style={{ color: 'var(--muted)' }}>데이터 없음</div>
+    return <div className="text-center py-8 text-[18px]" style={{ color: 'var(--muted)' }}>데이터 없음</div>
   }
 
-  const thCls = 'py-2.5 px-3 font-bold text-[15px]'
-  const tdCls = 'py-2.5 px-3 text-[15px] tabular'
+  const thCls = 'py-2.5 px-3 font-bold text-[18px]'
+  const tdCls = 'py-2.5 px-3 text-[18px] tabular'
   const borderL = { borderLeft: '1px solid var(--border)' }
   const borderT = { borderTop: '1px solid var(--border)' }
   const borderT2 = { borderTop: '2px solid var(--border)' }
@@ -115,7 +115,7 @@ function MealMatrix({
                 {won(monthTotals[i])}
               </td>
             ))}
-            <td className={`${tdCls} text-right font-bold text-[17px]`} style={{ color: 'var(--accent)', ...borderL }}>
+            <td className={`${tdCls} text-right font-bold text-[20px]`} style={{ color: 'var(--accent)', ...borderL }}>
               {won(grandTotal)}
             </td>
           </tr>
@@ -250,7 +250,7 @@ export default function MealDetail() {
               >
                 <div className="flex items-start justify-between gap-1">
                   <div
-                    className="text-[12px] font-bold uppercase tracking-widest"
+                    className="text-[15px] font-bold uppercase tracking-widest"
                     style={{ color: active ? 'var(--accent)' : 'var(--muted)' }}
                   >
                     {tab.label}
@@ -265,10 +265,10 @@ export default function MealDetail() {
                     </button>
                   )}
                 </div>
-                <div className="font-display text-[26px] font-bold tabular" style={{ color: 'var(--ink)' }}>
+                <div className="font-display text-[29px] font-bold tabular" style={{ color: 'var(--ink)' }}>
                   {won(tab.total)}
                 </div>
-                <div className="text-[13px]" style={{ color: 'var(--muted)' }}>{tab.sub}</div>
+                <div className="text-[16px]" style={{ color: 'var(--muted)' }}>{tab.sub}</div>
               </div>
             )
           })}
@@ -293,17 +293,17 @@ export default function MealDetail() {
                 className="rounded-xl border p-3 flex items-center justify-between"
                 style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
               >
-                <span className="text-[15px]" style={{ color: 'var(--muted)' }}>1회 단가</span>
+                <span className="text-[18px]" style={{ color: 'var(--muted)' }}>1회 단가</span>
                 <div className="flex items-center gap-2">
                   <NumInput value={meal.woesing} onCommit={setWoesing} />
-                  <span className="text-[14px]" style={{ color: 'var(--muted)' }}>원</span>
+                  <span className="text-[17px]" style={{ color: 'var(--muted)' }}>원</span>
                 </div>
               </div>
               <div className="flex items-center justify-between px-1">
-                <span className="text-[17px]" style={{ color: 'var(--muted)' }}>
+                <span className="text-[20px]" style={{ color: 'var(--muted)' }}>
                   {operatingMonthCount}개월 × {won(meal.woesing)}
                 </span>
-                <span className="font-display text-[28px] font-bold tabular" style={{ color: 'var(--ink)' }}>
+                <span className="font-display text-[31px] font-bold tabular" style={{ color: 'var(--ink)' }}>
                   {won(woesingTotal)}
                 </span>
               </div>
@@ -322,10 +322,10 @@ export default function MealDetail() {
       >
         <div className="flex flex-col gap-4 pt-2">
           <div className="flex items-center justify-between">
-            <span className="text-[16px]" style={{ color: 'var(--muted)' }}>1인 1일 단가</span>
+            <span className="text-[19px]" style={{ color: 'var(--muted)' }}>1인 1일 단가</span>
             <div className="flex items-center gap-2">
               <NumInput value={meal.lunchPerDay} onCommit={setLunch} />
-              <span className="text-[15px]" style={{ color: 'var(--muted)' }}>원</span>
+              <span className="text-[18px]" style={{ color: 'var(--muted)' }}>원</span>
             </div>
           </div>
           <div className="flex justify-end">
@@ -348,17 +348,17 @@ export default function MealDetail() {
       >
         <div className="flex flex-col gap-4 pt-2">
           <div className="flex items-center justify-between">
-            <span className="text-[16px]" style={{ color: 'var(--muted)' }}>1인 1일 단가</span>
+            <span className="text-[19px]" style={{ color: 'var(--muted)' }}>1인 1일 단가</span>
             <div className="flex items-center gap-2">
               <NumInput value={meal.dinnerPerDay} onCommit={setDinner} />
-              <span className="text-[15px]" style={{ color: 'var(--muted)' }}>원</span>
+              <span className="text-[18px]" style={{ color: 'var(--muted)' }}>원</span>
             </div>
           </div>
           <div
             className="rounded-xl border p-3"
             style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
           >
-            <div className="text-[12px] font-bold uppercase tracking-wider mb-2.5" style={{ color: 'var(--muted)' }}>
+            <div className="text-[15px] font-bold uppercase tracking-wider mb-2.5" style={{ color: 'var(--muted)' }}>
               포함 직무
             </div>
             <div className="flex flex-wrap gap-2">
@@ -367,7 +367,7 @@ export default function MealDetail() {
                 return (
                   <label
                     key={i}
-                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 cursor-pointer text-[14px] select-none"
+                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 cursor-pointer text-[17px] select-none"
                     style={{
                       background: included ? 'color-mix(in oklch, var(--accent) 12%, transparent)' : 'var(--surface)',
                       border: included ? '1px solid var(--accent)' : '1px solid var(--border)',

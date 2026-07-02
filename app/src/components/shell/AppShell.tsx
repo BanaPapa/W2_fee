@@ -21,6 +21,26 @@ export default function AppShell() {
   const [flipNonce, setFlipNonce] = useState(0)
   const [panelReady, setPanelReady] = useState(false)
   const [transitioning, setTransitioning] = useState(false)
+  const [navWidth, setNavWidth] = useState(336) // 280 * 1.2
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = navWidth
+    const onMove = (ev: MouseEvent) => {
+      setNavWidth(Math.max(180, Math.min(560, startWidth + (ev.clientX - startX))))
+    }
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }
 
   const reduceMotion = useRef(
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -125,7 +145,7 @@ export default function AppShell() {
         style={
           split
             ? {
-                gridTemplateColumns: '280px minmax(0,1fr)',
+                gridTemplateColumns: `${navWidth}px 8px minmax(0,1fr)`,
                 gridTemplateRows: 'auto minmax(0,1fr)',
                 height: 'calc(100vh - 72px)',
               }
@@ -149,7 +169,20 @@ export default function AppShell() {
           />
         </div>
 
-        <div className={split ? 'col-start-2 row-start-1 row-span-2 min-h-0' : 'hidden'}>
+        {/* 드래그 리사이즈 핸들 */}
+        {split && (
+          <div
+            className="col-start-2 row-start-1 row-span-2 flex items-stretch justify-center cursor-col-resize group"
+            onMouseDown={handleDragStart}
+          >
+            <div
+              className="w-[3px] rounded-full transition-colors"
+              style={{ background: 'var(--border)' }}
+            />
+          </div>
+        )}
+
+        <div className={split ? 'col-start-3 row-start-1 row-span-2 min-h-0' : 'hidden'}>
           <AnimatePresence>
             {active && split && (
               <DetailPanel key={active} active={active} ready={panelReady} reduceMotion={reduceMotion} />
