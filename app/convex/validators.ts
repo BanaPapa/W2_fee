@@ -39,7 +39,9 @@ export const role = v.object({
   name: v.string(),
   daily: v.number(),
   people: v.array(person),
-  section: v.union(v.literal('planning'), v.literal('sales'), v.literal('other')),
+  section: v.union(v.literal('planning'), v.literal('sales'), v.literal('other_short'), v.literal('other_long')),
+  usagePeriod: v.optional(v.union(v.literal('all'), v.literal('presales'), v.literal('open'), v.literal('postsales'))),
+  costMode: v.optional(v.union(v.literal('individual'), v.literal('aggregate'))),
 })
 
 export const lineItem = v.object({

@@ -337,7 +337,7 @@ export default function PeriodStageModal({ open, onClose }: { open: boolean; onC
 
   return (
     <Modal open={open} onClose={onClose} title="분양 기간"
-      widthCss="70vw" heightCss="90vh"
+      widthCss="84vw" heightCss="90vh"
       disableBackdropClose headerControls={headerControls}>
 
       <div className="flex-1 flex flex-col overflow-y-auto"

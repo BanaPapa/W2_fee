@@ -539,6 +539,7 @@ button { font-family: inherit; }
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
 .modal-head h2 { margin: 0; font-size: 21px; font-weight: 800; color: var(--ink); }
 .modal-head .sub { color: var(--muted); font-size: 16px; margin: 2px 0 0; }
+.role-calendar-modal .modal-head h2 { font-size: 23px; }
 .x {
   width: 36px; height: 36px; flex: none; border-radius: 11px; border: 1px solid var(--glass-brd);
   background: var(--surface); color: var(--muted); display: grid; place-items: center; cursor: pointer;

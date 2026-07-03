@@ -1,18 +1,23 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import Modal from '../ui/Modal'
 import DetailHeader from './DetailHeader'
-import { PlusIcon, MinusIcon } from '../icons'
+import { PlusIcon, MinusIcon, GearIcon } from '../icons'
 import { won, wonCompact } from '../../lib/format'
-import { YEAR, D, isWorkP, patOf, DOW, type Person } from '../../lib/schedule'
+import { YEAR, D, isWorkP, patOf, DOW, projectMonths as computeProjectMonths, toggleWorkDay, type Person } from '../../lib/schedule'
 import {
   useLaborStore,
   laborTotal,
   roleTotal,
   roleTotalDays,
+  USAGE_PERIOD_LABELS,
   type Role,
   type Section,
+  type UsagePeriod,
+  type CostMode,
 } from '../../store/laborStore'
 import { useProjectStore, toDate, toIso, MS_DAY } from '../../store/projectStore'
+
+const USAGE_PERIOD_OPTIONS: (UsagePeriod | null)[] = [null, 'all', 'presales', 'open', 'postsales']
 
 const PATTERNS: { v: number; label: string }[] = [
   { v: 7, label: '주 7일' },
@@ -23,7 +28,8 @@ const PATTERNS: { v: number; label: string }[] = [
 const SECTIONS = [
   { key: 'planning' as const, maxCards: 4 },
   { key: 'sales' as const, maxCards: 4 },
-  { key: 'other' as const, maxCards: 8 },
+  { key: 'other_short' as const, maxCards: 8 },
+  { key: 'other_long' as const, maxCards: 8 },
 ]
 
 type KeyDateType = 'open' | 'contract' | 'alt'
@@ -68,16 +74,15 @@ function RateInput({ value, onCommit }: { value: number; onCommit: (v: number) =
 export default function LaborDetail() {
   const roles = useLaborStore((s) => s.roles)
   const sectionNames = useLaborStore((s) => s.sectionNames)
-  const { addRole, changeRoleSection, removeRole, reorderRole, renameRole, setDaily, addPerson, removePerson, updatePerson, renameSection } =
-    useLaborStore()
+  const {
+    addRole, changeRoleSection, removeRole, reorderRole, renameRole, setDaily, addPerson, removePerson,
+    updatePerson, renameSection, setRoleUsagePeriod, setRoleCostMode,
+  } = useLaborStore()
   const extras = useProjectStore((s) => s.extras)
   const periodStart = useProjectStore((s) => s.periodStart)
   const periodEnd = useProjectStore((s) => s.periodEnd)
 
-  const projectMonths: number[] = []
-  const sm = new Date(periodStart).getMonth()
-  const em = new Date(periodEnd).getMonth()
-  for (let m = sm; m <= em; m++) projectMonths.push(m)
+  const projectMonths = computeProjectMonths(periodStart, periodEnd)
 
   const [detailRole, setDetailRole] = useState<number | null>(null)
   const [rateOpen, setRateOpen] = useState(false)
@@ -95,6 +100,7 @@ export default function LaborDetail() {
   const rateDragAllowed = { current: false }
 
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+  const [settingsRole, setSettingsRole] = useState<number | null>(null)
   const [integratedOpen, setIntegratedOpen] = useState(false)
   const [detailMonth, setDetailMonth] = useState<number | null>(null)
 
@@ -256,8 +262,21 @@ export default function LaborDetail() {
                           <div className="text-[15px] text-[var(--muted)] mt-1">
                             {roleTotalDays(r, extras)}일 · <b className="text-[var(--fg)]">{r.people.length}명</b>
                           </div>
+                          {(r.usagePeriod || r.costMode === 'aggregate') && (
+                            <div className="text-[12px] font-semibold mt-0.5" style={{ color: 'var(--accent)' }}>
+                              {r.usagePeriod ? USAGE_PERIOD_LABELS[r.usagePeriod] : '개별'} · {r.costMode === 'aggregate' ? '집합' : '개별'}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 flex-none">
+                          <button
+                            className="back-btn !w-8 !h-8"
+                            aria-label="직무 설정"
+                            onClick={(e) => { e.stopPropagation(); setSettingsRole(i) }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <GearIcon style={{ width: 15, height: 15 }} />
+                          </button>
                           <button
                             className="back-btn !w-8 !h-8"
                             aria-label="인원 감소"
@@ -294,6 +313,69 @@ export default function LaborDetail() {
           )
         })}
       </div>
+
+      {/* ---- 직무 설정 모달 (인력 사용기간 · 인건비 산정방식) ---- */}
+      <Modal
+        open={settingsRole !== null}
+        onClose={() => setSettingsRole(null)}
+        title={settingsRole !== null ? `${roles[settingsRole]?.name ?? ''} 설정` : '직무 설정'}
+        width={420}
+      >
+        {settingsRole !== null && roles[settingsRole] && (
+          <div className="flex flex-col gap-5 pt-1">
+            <div>
+              <div className="text-[15px] font-bold mb-2" style={{ color: 'var(--muted)' }}>인력 사용기간</div>
+              <div className="flex flex-wrap gap-2">
+                {USAGE_PERIOD_OPTIONS.map((opt) => {
+                  const active = (roles[settingsRole]!.usagePeriod ?? null) === opt
+                  return (
+                    <button
+                      key={opt ?? 'none'}
+                      className="pill"
+                      style={active ? { background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' } : undefined}
+                      onClick={() => setRoleUsagePeriod(settingsRole, opt)}
+                    >
+                      {opt ? USAGE_PERIOD_LABELS[opt] : '개별(자유 편집)'}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="text-[13px] mt-2" style={{ color: 'var(--muted)' }}>
+                기간을 선택하면 이 직무의 모든 인원 근무기간이 해당 기간으로 일괄 설정됩니다.
+              </div>
+            </div>
+            <div>
+              <div className="text-[15px] font-bold mb-2" style={{ color: 'var(--muted)' }}>인건비 산정방식</div>
+              <div className="flex gap-2">
+                {(['individual', 'aggregate'] as CostMode[]).map((mode) => {
+                  const active = (roles[settingsRole]!.costMode ?? 'individual') === mode
+                  return (
+                    <button
+                      key={mode}
+                      className="pill"
+                      style={active ? { background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' } : undefined}
+                      onClick={() => setRoleCostMode(settingsRole, mode)}
+                    >
+                      {mode === 'individual' ? '개별' : '집합'}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="text-[13px] mt-2" style={{ color: 'var(--muted)' }}>
+                집합을 선택하면 인원별 달력 대신, 직무군 전체를 한 줄로 보여주고 인원 전체가 같은 일정을 공유합니다.
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setSettingsRole(null)}
+                style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 20px', fontWeight: 700, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* ---- 삭제 확인 모달 ---- */}
       <Modal
@@ -345,13 +427,14 @@ export default function LaborDetail() {
 
       {/* ---- 달력 상세 모달 (통합 달력 위에 뜰 수 있어 아래에 배치) ---- */}
       <Modal
+        className="role-calendar-modal"
         open={detailRole !== null}
         onClose={() => { setDetailRole(null); setDetailMonth(null) }}
         title={detailRole !== null ? roles[detailRole]?.name ?? '' : ''}
         widthCss="60vw"
         heightCss="95vh"
         headerControls={detailRole !== null ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginLeft: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginLeft: 16, width: '100%' }}>
             <span style={{ fontSize: 21, fontWeight: 800, color: 'var(--ink)' }}>{roles[detailRole]?.people.length ?? 0}명</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <button className="back-btn !w-7 !h-7" disabled={(roles[detailRole]?.people.length ?? 0) === 0} onClick={() => removePerson(detailRole!)} aria-label="인원 감소">
@@ -361,6 +444,11 @@ export default function LaborDetail() {
                 <PlusIcon />
               </button>
             </div>
+            {roles[detailRole] && (
+              <span style={{ marginLeft: 'auto', marginRight: 28, fontSize: 24, fontWeight: 800, color: 'var(--accent)' }}>
+                {won(roleTotal(roles[detailRole], extras))}
+              </span>
+            )}
           </div>
         ) : undefined}
       >
@@ -497,12 +585,12 @@ function CalendarModal({
     monthRefs.current[scrollToMonth]?.scrollIntoView({ block: 'start' })
   }, [scrollToMonth])
 
+  const [monthOpenOverride, setMonthOpenOverride] = useState<Record<number, boolean>>({})
+  const toggleMonth = (m: number, autoOpen: boolean) =>
+    setMonthOpenOverride((o) => ({ ...o, [m]: !(o[m] ?? autoOpen) }))
+
   const toggleDay = (pi: number, month: number, day: number) => {
-    const p = role.people[pi]
-    const date = new Date(YEAR, month, day)
-    const currently = isWorkP(date, p)
-    const key = `${month}-${day}`
-    onUpdatePerson(pi, { ov: { ...(p.ov ?? {}), [key]: !currently } })
+    onUpdatePerson(pi, toggleWorkDay(role.people[pi], month, day))
   }
 
   const setPattern = (pi: number, v: number) => {
@@ -510,6 +598,14 @@ function CalendarModal({
     const pat: Record<number, number> = {}
     for (let m = p.s[0]; m <= p.e[0]; m++) pat[m] = v
     onUpdatePerson(pi, { pat, ov: {} })
+  }
+
+  const setPatternAll = (v: number) => {
+    role.people.forEach((p, pi) => {
+      const pat: Record<number, number> = {}
+      for (let m = p.s[0]; m <= p.e[0]; m++) pat[m] = v
+      onUpdatePerson(pi, { pat, ov: {} })
+    })
   }
 
   const stages = useProjectStore((s) => s.stages)
@@ -540,18 +636,27 @@ function CalendarModal({
     return isWorkP(date, p)
   }
 
+  const isAggregate = role.costMode === 'aggregate'
+  const displayPeople = isAggregate ? role.people.slice(0, 1) : role.people
+
+  // 인력 사용기간이 '전체'가 아니면(사전/오픈/사후/미설정), 인원수와 상관없이 근무 패턴은 하나로 통일
+  const unifyPattern = isAggregate || role.usagePeriod !== 'all'
+  const patternPeople = unifyPattern ? role.people.slice(0, 1) : role.people
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, marginTop: 10 }}>
       {/* 인원별 근무 패턴 */}
       {role.people.length > 0 && (
         <div style={{ flexShrink: 0, paddingBottom: 10, marginBottom: 4, borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {role.people.map((p, pi) => (
+            {patternPeople.map((p, pi) => (
               <div key={pi} style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 background: 'var(--surface-2)', borderRadius: 8, padding: '4px 8px',
               }}>
-                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', minWidth: 26 }}>#{pi + 1}</span>
+                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', minWidth: 26 }}>
+                  {unifyPattern ? `전체 ${role.people.length}명` : `#${pi + 1}`}
+                </span>
                 <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                   <select
                     style={{
@@ -561,7 +666,7 @@ function CalendarModal({
                       WebkitAppearance: 'none', cursor: 'pointer', fontFamily: 'inherit',
                     }}
                     value={patOf(p, p.s[0])}
-                    onChange={(e) => setPattern(pi, Number(e.target.value))}
+                    onChange={(e) => unifyPattern ? setPatternAll(Number(e.target.value)) : setPattern(pi, Number(e.target.value))}
                   >
                     {PATTERNS.map((pt) => (
                       <option key={pt.v} value={pt.v}>{pt.label}</option>
@@ -585,11 +690,19 @@ function CalendarModal({
           const personMonthDays = (pi: number) =>
             days.filter((d) => effectivelyWorks(new Date(YEAR, m, d), role.people[pi])).length
           const grandTotal = days.reduce((n, d) => n + dayTotal(d), 0)
+          const autoOpen = !(grandTotal === 0 && role.usagePeriod !== 'all')
+          const isOpen = monthOpenOverride[m] ?? autoOpen
 
           return (
             <div key={m} ref={(el) => { monthRefs.current[m] = el }}>
               {/* 월 라벨 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7, cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => toggleMonth(m, autoOpen)}
+              >
+                <span style={{ fontSize: 12, color: 'var(--muted)', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', display: 'inline-block' }}>
+                  ▸
+                </span>
                 <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
                   {m + 1}월
                 </span>
@@ -600,6 +713,7 @@ function CalendarModal({
               </div>
 
               {/* 전체 너비 테이블 (최소 680px 이하면 가로 스크롤) */}
+              {isOpen && (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', width: '100%', minWidth: 680 }}>
                   <thead>
@@ -645,10 +759,10 @@ function CalendarModal({
                     </tr>
                   </thead>
                   <tbody>
-                    {role.people.map((p, pi) => (
+                    {displayPeople.map((p, pi) => (
                       <tr key={pi} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '4px 10px 4px 0', fontWeight: 700, color: 'var(--fg)', fontSize: 16, whiteSpace: 'nowrap' }}>
-                          #{pi + 1}
+                          {isAggregate ? `전체 ${role.people.length}명` : `#${pi + 1}`}
                         </td>
                         {days.map((d) => {
                           const date = new Date(YEAR, m, d)
@@ -681,11 +795,11 @@ function CalendarModal({
                           return (
                             <td
                               key={d}
-                              onClick={() => inRange && toggleDay(pi, m, d)}
-                              title={!inRange ? '근무 기간 외' : works ? '클릭: 휴무 처리' : '클릭: 근무 처리'}
+                              onClick={() => toggleDay(pi, m, d)}
+                              title={!inRange ? '클릭: 근무일로 추가' : works ? '클릭: 휴무 처리' : '클릭: 근무 처리'}
                               style={{
                                 height: 28, textAlign: 'center', padding: '2px 1px',
-                                cursor: inRange ? 'pointer' : 'default',
+                                cursor: 'pointer',
                                 borderRadius: 3, background: bg, color,
                                 fontSize: 18, fontWeight: 900, userSelect: 'none',
                                 transition: 'background 0.1s',
@@ -722,6 +836,7 @@ function CalendarModal({
                   </tbody>
                 </table>
               </div>
+              )}
             </div>
           )
         })}
@@ -804,10 +919,7 @@ function IntegratedCalendarModal({
   const popoverRole = popover ? roles[popover.roleIndex] : null
 
   const togglePersonDay = (roleIndex: number, personIndex: number, m: number, d: number, p: Person) => {
-    const date = new Date(YEAR, m, d)
-    const currently = isWorkP(date, p)
-    const key = `${m}-${d}`
-    updatePerson(roleIndex, personIndex, { ov: { ...(p.ov ?? {}), [key]: !currently } })
+    updatePerson(roleIndex, personIndex, toggleWorkDay(p, m, d))
   }
 
   return (
@@ -1005,19 +1117,18 @@ function IntegratedCalendarModal({
                 return (
                   <button
                     key={pi}
-                    disabled={!inRange}
                     onClick={() => togglePersonDay(popover.roleIndex, pi, popover.m, popover.d, p)}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14,
                       padding: '5px 8px', borderRadius: 6, border: 'none', textAlign: 'left',
                       background: works ? 'rgba(34,197,94,0.16)' : 'var(--surface-2)',
-                      color: inRange ? 'var(--fg)' : 'var(--border)',
-                      cursor: inRange ? 'pointer' : 'not-allowed',
+                      color: 'var(--fg)',
+                      cursor: 'pointer',
                       fontSize: 14, fontWeight: 600, fontFamily: 'inherit',
                     }}
                   >
                     <span>#{pi + 1}</span>
-                    <span>{!inRange ? '기간 외' : works ? '근무' : '휴무'}</span>
+                    <span>{!inRange ? '기간 외 · 클릭시 추가' : works ? '근무' : '휴무'}</span>
                   </button>
                 )
               })}

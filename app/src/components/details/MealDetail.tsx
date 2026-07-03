@@ -6,10 +6,10 @@ import { won } from '../../lib/format'
 import { useMealStore, isDinnerRole, mealTotal } from '../../store/mealStore'
 import { useLaborStore, DEFAULT_SECTION_NAMES } from '../../store/laborStore'
 import { useProjectStore } from '../../store/projectStore'
-import { monthWorkP } from '../../lib/schedule'
+import { monthWorkP, projectMonths as computeProjectMonths } from '../../lib/schedule'
 import type { Role, Section } from '../../store/laborStore'
 
-const SECTION_ORDER: Section[] = ['planning', 'sales', 'other']
+const SECTION_ORDER: Section[] = ['planning', 'sales', 'other_short', 'other_long']
 
 function NumInput({
   value,
@@ -200,10 +200,7 @@ export default function MealDetail() {
   const [activeTab, setActiveTab] = useState<Tab>('lunch')
   const [editModal, setEditModal] = useState<Tab | null>(null)
 
-  const startMonth = new Date(periodStart).getMonth()
-  const endMonth = new Date(periodEnd).getMonth()
-  const projectMonths: number[] = []
-  for (let m = startMonth; m <= endMonth; m++) projectMonths.push(m)
+  const projectMonths = computeProjectMonths(periodStart, periodEnd)
   const operatingMonthCount = projectMonths.length
 
   const lunchTotal = roles.reduce(

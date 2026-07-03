@@ -1,5 +1,8 @@
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import { toDate, toIso, MS_DAY, calcAnnounceDate, type Stage } from '../../store/projectStore'
 import { DOW } from '../../lib/schedule'
+import { BackArrow, ArrowRight } from '../icons'
 import type { HolidayMap } from '../../lib/holidays'
 
 const STAGE_COLOR: Record<string, string> = { presales: 'var(--teal)', main: 'var(--accent)', postsales: 'var(--slate)' }
@@ -77,7 +80,21 @@ export default function CombinedPeriodCalendar({
   periodEnd: string
   holidays: HolidayMap
 }) {
-  const months = pickMonths(presales, main, periodEnd)
+  const fullMonths = monthsBetween(presales.start, periodEnd)
+  const defaultMonths = pickMonths(presales, main, periodEnd)
+  const visibleCount = defaultMonths.length
+  const defaultStart = Math.max(0, fullMonths.findIndex(m => monthKey(m) === monthKey(defaultMonths[0])))
+
+  const [windowStart, setWindowStart] = useState(defaultStart)
+  const [direction, setDirection] = useState(0)
+
+  const canPrev = windowStart > 0
+  const canNext = windowStart + visibleCount < fullMonths.length
+
+  const goPrev = () => { if (canPrev) { setDirection(-1); setWindowStart(w => w - 1) } }
+  const goNext = () => { if (canNext) { setDirection(1); setWindowStart(w => w + 1) } }
+
+  const months = fullMonths.slice(windowStart, windowStart + visibleCount)
 
   const stageRanges = [presales, main, postsales].filter((s): s is Stage => !!s).map(s => ({
     id: s.id,
@@ -112,14 +129,52 @@ export default function CombinedPeriodCalendar({
   const altKd = findKd('alt')
   if (contractKd && altKd) {
     const cMs = toDate(contractKd.date).getTime()
-    const aMs = toDate(altKd.date).getTime()
-    for (let ms = cMs; ms < aMs; ms += MS_DAY) keyMarkers.set(toIso(ms), { label: '정당계약', color: CONTRACT_COLOR })
+    const contractDays = main.contractDays ?? 3
+    for (let i = 0; i < contractDays; i++) {
+      keyMarkers.set(toIso(cMs + i * MS_DAY), { label: '정당계약', color: CONTRACT_COLOR })
+    }
     keyMarkers.set(altKd.date, { label: '예당계약', color: CONTRACT_COLOR })
   }
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${months.length}, 1fr)`, gap: 24 }}>
+      <div style={{ position: 'relative' }}>
+        <button
+          className="back-btn"
+          aria-label="이전 달"
+          disabled={!canPrev}
+          onClick={goPrev}
+          style={{
+            position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
+            zIndex: 2, opacity: canPrev ? 1 : 0.35, cursor: canPrev ? 'pointer' : 'default',
+          }}
+        >
+          <BackArrow />
+        </button>
+        <button
+          className="back-btn"
+          aria-label="다음 달"
+          disabled={!canNext}
+          onClick={goNext}
+          style={{
+            position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)',
+            zIndex: 2, opacity: canNext ? 1 : 0.35, cursor: canNext ? 'pointer' : 'default',
+          }}
+        >
+          <ArrowRight />
+        </button>
+
+        <div style={{ overflow: 'hidden', padding: '0 60px', position: 'relative' }}>
+          <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+            <motion.div
+              key={windowStart}
+              custom={direction}
+              initial={{ x: `${direction * 100}%` }}
+              animate={{ x: '0%' }}
+              exit={{ x: `${direction * -100}%` }}
+              transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
+              style={{ display: 'grid', gridTemplateColumns: `repeat(${months.length}, 1fr)`, gap: 24 }}
+            >
         {months.map(({ year, month }) => {
           const daysInMonth = new Date(year, month + 1, 0).getDate()
           const firstDow    = new Date(year, month, 1).getDay()
@@ -202,6 +257,9 @@ export default function CombinedPeriodCalendar({
             </div>
           )
         })}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* 범례 */}

@@ -36,13 +36,13 @@ export const isWorkP = (date: Date, p: Person): boolean => {
   return dayWorks(date.getDay(), patOf(p, date.getMonth()))
 }
 
-/** planned paid days across the person's whole window (pattern only) */
+/** planned paid days across the person's whole window (honours per-day overrides) */
 export const ppdP = (p: Person): number => {
   let n = 0
   const d = new Date(D(p.s))
   const end = D(p.e)
   while (d <= end) {
-    if (dayWorks(d.getDay(), patOf(p, d.getMonth()))) n++
+    if (isWorkP(d, p)) n++
     d.setDate(d.getDate() + 1)
   }
   return n
@@ -64,4 +64,59 @@ export const monthsOf = (p: Person): number[] => {
   return a
 }
 
+const DAY_MS = 86400000
+
+/**
+ * 달력에서 특정 날짜를 클릭했을 때 적용할 patch를 계산한다.
+ * - 근무기간(s~e) 안의 날짜: 그 날의 근무 여부만 뒤집는다.
+ * - 근무기간 밖의 날짜: 그 날짜까지 기간을 넓히되, 새로 포함되는 다른 날짜는
+ *   전부 비근무로 두고 클릭한 날짜만 근무로 표시한다.
+ */
+export function toggleWorkDay(p: Person, month: number, day: number): Partial<Person> {
+  const date = new Date(YEAR, month, day)
+  const key = `${month}-${day}`
+  const inRange = date >= D(p.s) && date <= D(p.e)
+
+  if (inRange) {
+    const currently = isWorkP(date, p)
+    return { ov: { ...(p.ov ?? {}), [key]: !currently } }
+  }
+
+  const sMs = D(p.s).getTime()
+  const eMs = D(p.e).getTime()
+  const dateMs = date.getTime()
+  const newOv: Record<string, boolean> = { ...(p.ov ?? {}) }
+
+  if (dateMs < sMs) {
+    for (let ms = dateMs; ms < sMs; ms += DAY_MS) {
+      const dd = new Date(ms)
+      newOv[`${dd.getMonth()}-${dd.getDate()}`] = false
+    }
+    newOv[key] = true
+    return { s: [month, day], ov: newOv }
+  }
+
+  for (let ms = eMs + DAY_MS; ms <= dateMs; ms += DAY_MS) {
+    const dd = new Date(ms)
+    newOv[`${dd.getMonth()}-${dd.getDate()}`] = false
+  }
+  newOv[key] = true
+  return { e: [month, day], ov: newOv }
+}
+
 export const DOW = ['일', '월', '화', '수', '목', '금', '토']
+
+/**
+ * 프로젝트 기간에 해당하는 월(0-indexed) 목록.
+ * Person 스케줄이 YEAR 한 해만 표현 가능하므로, periodEnd가 다음 해로 넘어가면
+ * 그 해 12월(index 11)까지만 잘라서 보여준다.
+ */
+export function projectMonths(periodStart: string, periodEnd: string): number[] {
+  const s = new Date(periodStart)
+  const e = new Date(periodEnd)
+  const sm = s.getMonth()
+  const em = s.getFullYear() === e.getFullYear() ? e.getMonth() : 11
+  const months: number[] = []
+  for (let m = sm; m <= em; m++) months.push(m)
+  return months
+}
