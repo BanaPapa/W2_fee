@@ -11,6 +11,13 @@ const base = (p: IP) => ({
 })
 
 /* ---------- category emblems (from index.html) ---------- */
+export const FeeIcon = (p: IP) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="m7.5 8 1.8 8 2.7-6.5 2.7 6.5L16.5 8" />
+    <path d="M7 11h10" />
+  </svg>
+)
 export const LaborIcon = (p: IP) => (
   <svg {...base(p)}>
     <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />

@@ -44,6 +44,32 @@ export const role = v.object({
   costMode: v.optional(v.union(v.literal('individual'), v.literal('aggregate'))),
 })
 
+export const feePeriod = v.object({
+  key: v.string(),
+  label: v.string(),
+  date: v.optional(v.string()),
+  ratePct: v.number(),
+  stage: v.union(v.literal('desk'), v.literal('s1'), v.literal('s2'), v.literal('s3')),
+})
+
+// bill은 구버전 문서 호환용 — 청구수수료는 이제 billAmount로 직접 입력한다.
+export const feeStageRates = v.object({ bill: v.optional(v.number()), org: v.number() })
+
+export const feeFields = {
+  totalUnits: v.number(),
+  billAmount: v.optional(v.number()),
+  periods: v.array(feePeriod),
+  stageRates: v.object({
+    desk: feeStageRates,
+    s1: feeStageRates,
+    s2: feeStageRates,
+    s3: feeStageRates,
+  }),
+  mgmUnitPrice: v.number(),
+  mgmRatePct: v.number(),
+  mgmBasis: v.union(v.literal('contract'), v.literal('alt')),
+}
+
 export const lineItem = v.object({
   id: v.string(),
   name: v.string(),

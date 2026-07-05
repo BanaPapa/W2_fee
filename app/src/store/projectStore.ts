@@ -247,7 +247,6 @@ export const useProjectStore = create<ProjectState>()(
           // 활성화 시: 항상 21일 표시 (end = start + 21 days, dur = 22 * MS_DAY)
           const existingDur = toDate(noOrder.end).getTime() - toDate(noOrder.start).getTime() + MS_DAY
           const ENABLE_DUR  = 22 * MS_DAY  // start+21일 = 21일 표시
-          const dur   = wasEnabled ? existingDur : ENABLE_DUR
           const delta = wasEnabled ? -existingDur : ENABLE_DUR
 
           const stages = state.stages.map((s, i) => {

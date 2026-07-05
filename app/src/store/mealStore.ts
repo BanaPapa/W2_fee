@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { ppdP } from '../lib/schedule'
-import type { Role } from './laborStore'
+import { roleUnitPriceValue, type Role } from './laborStore'
+import type { ExtraSlot } from './projectStore'
 import { api } from '../../convex/_generated/api'
 import { convexClient } from '../lib/convexClient'
 import { debounce } from '../lib/debounce'
@@ -58,14 +59,26 @@ export const isDinnerRole = (role: Role, overrides: Record<string, boolean>): bo
   return (role.section ?? 'planning') === 'planning'
 }
 
+/** 사후(postsales) 직무는 인건비에서 0원 처리되는 대신, 단가표 금액이 식대로 전환되어 반영됨 */
+export const postsalesRoles = (roles: Role[]): Role[] => roles.filter((r) => r.usagePeriod === 'postsales')
+
+export const postsalesMealAmount = (roles: Role[], extras: ExtraSlot[]): number =>
+  postsalesRoles(roles).reduce((a, r) => a + roleUnitPriceValue(r, extras), 0)
+
 export const mealTotal = (
   s: Pick<MealState, 'lunchPerDay' | 'dinnerPerDay' | 'woesing' | 'dinnerRoleOverrides'>,
   roles: Role[],
   operatingMonths: number,
+  extras: ExtraSlot[],
 ): number => {
   const lunchDays = roles.reduce((a, r) => a + r.people.reduce((b, p) => b + ppdP(p), 0), 0)
   const dinnerDays = roles
     .filter((r) => isDinnerRole(r, s.dinnerRoleOverrides))
     .reduce((a, r) => a + r.people.reduce((b, p) => b + ppdP(p), 0), 0)
-  return s.lunchPerDay * lunchDays + s.dinnerPerDay * dinnerDays + s.woesing * operatingMonths
+  return (
+    s.lunchPerDay * lunchDays +
+    s.dinnerPerDay * dinnerDays +
+    s.woesing * operatingMonths +
+    postsalesMealAmount(roles, extras)
+  )
 }

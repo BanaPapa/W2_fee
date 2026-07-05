@@ -1,27 +1,36 @@
 // Work-schedule calculations ported from labor.html.
 // A "person" has an independent work window (s..e), an optional per-month
-// pattern, and per-day overrides.
+// pattern, and per-day overrides. Dates carry an explicit year so a person's
+// window can span across a calendar year boundary (e.g. 사후영업 running into
+// the following year).
 
-export const YEAR = 2026
-
-/** [monthIndex0, day] */
-export type MD = [number, number]
+/** [year, monthIndex0, day] */
+export type YMD = [number, number, number]
 
 export interface Person {
-  s: MD
-  e: MD
-  /** per-month pattern: 7 = every day, 6 = 6-day (off Wed, default), 5 = weekdays only */
-  pat?: Record<number, number>
-  /** per-day overrides keyed by "month-day" -> worked? */
+  s: YMD
+  e: YMD
+  /** per-month pattern, keyed `${year}-${month}`: 7 = every day, 6 = 6-day (off Wed, default), 5 = weekdays only */
+  pat?: Record<string, number>
+  /** per-day overrides, keyed `${year}-${month}-${day}` -> worked? */
   ov?: Record<string, boolean>
   /** per-extra-slot day overrides keyed by extra index */
   extraOv?: Record<number, number>
 }
 
-export const D = ([m, d]: MD): Date => new Date(YEAR, m, d)
+export interface MonthCell { year: number; month: number }
 
-export const patOf = (p: Person, m: number): number =>
-  p.pat && p.pat[m] != null ? p.pat[m] : 6
+export const monthCellKey = (m: MonthCell): number => m.year * 12 + m.month
+
+export const D = ([y, m, d]: YMD): Date => new Date(y, m, d)
+
+export const monthKeyOf = (year: number, month: number): string => `${year}-${month}`
+export const dayKeyOf = (year: number, month: number, day: number): string => `${year}-${month}-${day}`
+
+export const patOf = (p: Person, year: number, month: number): number => {
+  const k = monthKeyOf(year, month)
+  return p.pat && p.pat[k] != null ? p.pat[k] : 6
+}
 
 export const dayWorks = (weekday: number, pat: number): boolean => {
   if (pat === 7) return true
@@ -31,9 +40,9 @@ export const dayWorks = (weekday: number, pat: number): boolean => {
 
 export const isWorkP = (date: Date, p: Person): boolean => {
   if (date < D(p.s) || date > D(p.e)) return false
-  const key = date.getMonth() + '-' + date.getDate()
+  const key = dayKeyOf(date.getFullYear(), date.getMonth(), date.getDate())
   if (p.ov && key in p.ov) return p.ov[key]
-  return dayWorks(date.getDay(), patOf(p, date.getMonth()))
+  return dayWorks(date.getDay(), patOf(p, date.getFullYear(), date.getMonth()))
 }
 
 /** planned paid days across the person's whole window (honours per-day overrides) */
@@ -48,19 +57,26 @@ export const ppdP = (p: Person): number => {
   return n
 }
 
-/** working days within a given month, honouring overrides */
-export const monthWorkP = (p: Person, m: number): number => {
+/** working days within a given (year, month), honouring overrides */
+export const monthWorkP = (p: Person, year: number, month: number): number => {
   let n = 0
-  const dim = new Date(YEAR, m + 1, 0).getDate()
+  const dim = new Date(year, month + 1, 0).getDate()
   for (let d = 1; d <= dim; d++) {
-    if (isWorkP(new Date(YEAR, m, d), p)) n++
+    if (isWorkP(new Date(year, month, d), p)) n++
   }
   return n
 }
 
-export const monthsOf = (p: Person): number[] => {
-  const a: number[] = []
-  for (let m = p.s[0]; m <= p.e[0]; m++) a.push(m)
+export const monthsOf = (p: Person): MonthCell[] => {
+  const a: MonthCell[] = []
+  let y = p.s[0]
+  let m = p.s[1]
+  const endKey = monthCellKey({ year: p.e[0], month: p.e[1] })
+  while (y * 12 + m <= endKey) {
+    a.push({ year: y, month: m })
+    m++
+    if (m > 11) { m = 0; y++ }
+  }
   return a
 }
 
@@ -72,9 +88,9 @@ const DAY_MS = 86400000
  * - 근무기간 밖의 날짜: 그 날짜까지 기간을 넓히되, 새로 포함되는 다른 날짜는
  *   전부 비근무로 두고 클릭한 날짜만 근무로 표시한다.
  */
-export function toggleWorkDay(p: Person, month: number, day: number): Partial<Person> {
-  const date = new Date(YEAR, month, day)
-  const key = `${month}-${day}`
+export function toggleWorkDay(p: Person, year: number, month: number, day: number): Partial<Person> {
+  const date = new Date(year, month, day)
+  const key = dayKeyOf(year, month, day)
   const inRange = date >= D(p.s) && date <= D(p.e)
 
   if (inRange) {
@@ -90,33 +106,34 @@ export function toggleWorkDay(p: Person, month: number, day: number): Partial<Pe
   if (dateMs < sMs) {
     for (let ms = dateMs; ms < sMs; ms += DAY_MS) {
       const dd = new Date(ms)
-      newOv[`${dd.getMonth()}-${dd.getDate()}`] = false
+      newOv[dayKeyOf(dd.getFullYear(), dd.getMonth(), dd.getDate())] = false
     }
     newOv[key] = true
-    return { s: [month, day], ov: newOv }
+    return { s: [year, month, day], ov: newOv }
   }
 
   for (let ms = eMs + DAY_MS; ms <= dateMs; ms += DAY_MS) {
     const dd = new Date(ms)
-    newOv[`${dd.getMonth()}-${dd.getDate()}`] = false
+    newOv[dayKeyOf(dd.getFullYear(), dd.getMonth(), dd.getDate())] = false
   }
   newOv[key] = true
-  return { e: [month, day], ov: newOv }
+  return { e: [year, month, day], ov: newOv }
 }
 
 export const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
-/**
- * 프로젝트 기간에 해당하는 월(0-indexed) 목록.
- * Person 스케줄이 YEAR 한 해만 표현 가능하므로, periodEnd가 다음 해로 넘어가면
- * 그 해 12월(index 11)까지만 잘라서 보여준다.
- */
-export function projectMonths(periodStart: string, periodEnd: string): number[] {
+/** 프로젝트 기간(periodStart~periodEnd)에 해당하는 (연, 월) 목록. 해를 넘어가도 전부 포함한다. */
+export function projectMonths(periodStart: string, periodEnd: string): MonthCell[] {
   const s = new Date(periodStart)
   const e = new Date(periodEnd)
-  const sm = s.getMonth()
-  const em = s.getFullYear() === e.getFullYear() ? e.getMonth() : 11
-  const months: number[] = []
-  for (let m = sm; m <= em; m++) months.push(m)
+  const months: MonthCell[] = []
+  let y = s.getFullYear()
+  let m = s.getMonth()
+  const endKey = e.getFullYear() * 12 + e.getMonth()
+  while (y * 12 + m <= endKey) {
+    months.push({ year: y, month: m })
+    m++
+    if (m > 11) { m = 0; y++ }
+  }
   return months
 }

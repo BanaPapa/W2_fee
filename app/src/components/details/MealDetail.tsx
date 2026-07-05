@@ -3,10 +3,10 @@ import DetailHeader from './DetailHeader'
 import Modal from '../ui/Modal'
 import { GearIcon } from '../icons'
 import { won } from '../../lib/format'
-import { useMealStore, isDinnerRole, mealTotal } from '../../store/mealStore'
-import { useLaborStore, DEFAULT_SECTION_NAMES } from '../../store/laborStore'
+import { useMealStore, isDinnerRole, mealTotal, postsalesRoles, postsalesMealAmount } from '../../store/mealStore'
+import { useLaborStore, DEFAULT_SECTION_NAMES, roleUnitPriceValue, roleTotalDays } from '../../store/laborStore'
 import { useProjectStore } from '../../store/projectStore'
-import { monthWorkP, projectMonths as computeProjectMonths } from '../../lib/schedule'
+import { monthWorkP, projectMonths as computeProjectMonths, type MonthCell } from '../../lib/schedule'
 import type { Role, Section } from '../../store/laborStore'
 
 const SECTION_ORDER: Section[] = ['planning', 'sales', 'other_short', 'other_long']
@@ -56,12 +56,12 @@ function MealMatrix({
   sectionNames,
 }: {
   roles: Role[]
-  projectMonths: number[]
+  projectMonths: MonthCell[]
   ratePerDay: number
   sectionNames: Record<Section, string>
 }) {
-  const amounts = projectMonths.map((m) =>
-    roles.map((r) => r.people.reduce((a, p) => a + monthWorkP(p, m), 0) * ratePerDay)
+  const amounts = projectMonths.map(({ year, month }) =>
+    roles.map((r) => r.people.reduce((a, p) => a + monthWorkP(p, year, month), 0) * ratePerDay)
   )
 
   const activeMonthIdxs = projectMonths.map((_, i) => i).filter((mi) => amounts[mi].some((v) => v > 0))
@@ -102,7 +102,7 @@ function MealMatrix({
             <th className={`${thCls} text-left`} style={{ color: 'var(--muted)', minWidth: 80 }}>직무</th>
             {activeMonthIdxs.map((mi) => (
               <th key={mi} className={`${thCls} text-right`} style={{ color: 'var(--ink)', minWidth: 96 }}>
-                {projectMonths[mi] + 1}월
+                {projectMonths[mi].year}년 {projectMonths[mi].month + 1}월
               </th>
             ))}
             <th className={`${thCls} text-right`} style={{ color: 'var(--accent)', minWidth: 104, ...borderL }}>합계</th>
@@ -187,7 +187,7 @@ function MealMatrix({
   )
 }
 
-type Tab = 'lunch' | 'dinner' | 'woesing'
+type Tab = 'lunch' | 'dinner' | 'woesing' | 'postsales'
 
 export default function MealDetail() {
   const meal = useMealStore((s) => s)
@@ -196,6 +196,7 @@ export default function MealDetail() {
   const sectionNames = useLaborStore((s) => s.sectionNames)
   const periodStart = useProjectStore((s) => s.periodStart)
   const periodEnd = useProjectStore((s) => s.periodEnd)
+  const extras = useProjectStore((s) => s.extras)
 
   const [activeTab, setActiveTab] = useState<Tab>('lunch')
   const [editModal, setEditModal] = useState<Tab | null>(null)
@@ -205,22 +206,27 @@ export default function MealDetail() {
 
   const lunchTotal = roles.reduce(
     (a, r) =>
-      a + projectMonths.reduce((b, m) => b + r.people.reduce((c, p) => c + monthWorkP(p, m), 0) * meal.lunchPerDay, 0),
+      a + projectMonths.reduce((b, { year, month }) => b + r.people.reduce((c, p) => c + monthWorkP(p, year, month), 0) * meal.lunchPerDay, 0),
     0,
   )
   const dinnerRoles = roles.filter((r) => isDinnerRole(r, meal.dinnerRoleOverrides))
   const dinnerTotal = dinnerRoles.reduce(
     (a, r) =>
-      a + projectMonths.reduce((b, m) => b + r.people.reduce((c, p) => c + monthWorkP(p, m), 0) * meal.dinnerPerDay, 0),
+      a + projectMonths.reduce((b, { year, month }) => b + r.people.reduce((c, p) => c + monthWorkP(p, year, month), 0) * meal.dinnerPerDay, 0),
     0,
   )
   const woesingTotal = meal.woesing * operatingMonthCount
-  const total = mealTotal(meal, roles, operatingMonthCount)
+  const postsalesRolesList = postsalesRoles(roles)
+  const postsalesTotal = postsalesMealAmount(roles, extras)
+  const total = mealTotal(meal, roles, operatingMonthCount, extras)
 
   const tabs: { id: Tab; label: string; total: number; sub: string }[] = [
     { id: 'lunch',   label: '중식비', total: lunchTotal,   sub: `1일 ${won(meal.lunchPerDay)}` },
     { id: 'dinner',  label: '석식비', total: dinnerTotal,  sub: `1일 ${won(meal.dinnerPerDay)} · ${dinnerRoles.length}개 직무` },
     { id: 'woesing', label: '회식',   total: woesingTotal, sub: `${operatingMonthCount}개월` },
+    ...(postsalesRolesList.length > 0
+      ? [{ id: 'postsales' as Tab, label: '사후 인건비', total: postsalesTotal, sub: `${postsalesRolesList.length}개 직무 · 단가표 반영` }]
+      : []),
   ]
 
   return (
@@ -230,7 +236,7 @@ export default function MealDetail() {
       <div className="px-6 pt-5 flex flex-col gap-5">
 
         {/* 탭 카드 */}
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}>
           {tabs.map((tab) => {
             const active = activeTab === tab.id
             return (
@@ -252,7 +258,7 @@ export default function MealDetail() {
                   >
                     {tab.label}
                   </div>
-                  {tab.id !== 'woesing' && (
+                  {tab.id !== 'woesing' && tab.id !== 'postsales' && (
                     <button
                       className="back-btn !w-6 !h-6 flex-none"
                       aria-label="단가 수정"
@@ -282,6 +288,42 @@ export default function MealDetail() {
 
           {activeTab === 'dinner' && (
             <MealMatrix roles={dinnerRoles} projectMonths={projectMonths} ratePerDay={meal.dinnerPerDay} sectionNames={sectionNames} />
+          )}
+
+          {activeTab === 'postsales' && (
+            <div className="flex flex-col gap-3">
+              <div className="text-[15px]" style={{ color: 'var(--muted)' }}>
+                사후(postsales) 사용기간으로 설정된 직무는 인건비에서 0원 처리되고, 단가표 금액이 여기 식대로 전환되어 반영됩니다.
+              </div>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>직무</th>
+                    <th style={{ textAlign: 'right' }}>일 단가</th>
+                    <th style={{ textAlign: 'right' }}>일수</th>
+                    <th style={{ textAlign: 'right', minWidth: 120 }}>금액</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {postsalesRolesList.map((r, i) => (
+                    <tr key={i}>
+                      <td style={{ fontWeight: 600 }}>{r.name}</td>
+                      <td className="num">{won(r.daily)}</td>
+                      <td className="num">{roleTotalDays(r, extras)}일</td>
+                      <td className="num" style={{ color: 'var(--accent)', fontWeight: 700 }}>
+                        {won(roleUnitPriceValue(r, extras))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[18px]" style={{ color: 'var(--muted)' }}>합계</span>
+                <span className="font-display text-[27px] font-bold tabular" style={{ color: 'var(--ink)' }}>
+                  {won(postsalesTotal)}
+                </span>
+              </div>
+            </div>
           )}
 
           {activeTab === 'woesing' && (

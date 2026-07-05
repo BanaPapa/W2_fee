@@ -1,5 +1,6 @@
 import { motion } from 'motion/react'
 import type { CategoryId } from '../../data/categories'
+import FeeDetail from '../details/FeeDetail'
 import LaborDetail from '../details/LaborDetail'
 import MealDetail from '../details/MealDetail'
 import AdvertisingDetail from '../details/AdvertisingDetail'
@@ -7,6 +8,7 @@ import OperatingDetail from '../details/OperatingDetail'
 import MiscellaneousDetail from '../details/MiscellaneousDetail'
 
 const MAP: Record<CategoryId, () => React.JSX.Element> = {
+  fee: FeeDetail,
   labor: LaborDetail,
   meal: MealDetail,
   ad: AdvertisingDetail,

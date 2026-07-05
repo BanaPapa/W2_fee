@@ -1,44 +1,73 @@
-import { won } from '../../lib/format'
+import { won, wonCompact } from '../../lib/format'
 import { useTotals } from '../../store/totals'
+import { useFeeStore } from '../../store/feeStore'
 import { useCountUp } from '../../lib/useCountUp'
+import FeeStrip from '../ui/FeeStrip'
+
+const openFee = () => { window.location.hash = 'fee' }
 
 export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
-  const { grand } = useTotals()
-  const animated = useCountUp(grand)
+  const { grand, bill, profit, totalUnits } = useTotals()
+  const fee = useFeeStore((s) => s)
+  const animatedBill = useCountUp(bill)
   const split = mode === 'split'
+  const perUnit = totalUnits > 0 ? bill / totalUnits : 0
 
   return (
     <section
       className={
         split
           ? 'text-left pt-2 pb-1 pl-1 pr-1.5 border-b border-[color-mix(in_oklch,var(--border)_76%,transparent)]'
-          : 'text-center pb-16'
+          : 'text-center pb-10'
       }
     >
       <div className="kicker" style={{ fontSize: split ? 12 : 13 }}>
-        종합 현황 · 5개 비용 합계
+        청구수수료 · 세대당 {wonCompact(perUnit)}
       </div>
-      <div
-        className="grand"
+      <button
+        className="grand block bg-transparent border-0 p-0 cursor-pointer"
         style={{
           fontSize: split ? 'clamp(26px,2.6vw,38px)' : 'clamp(43px,8vw,92px)',
-          margin: split ? '8px 0 10px' : '14px 0 14px',
+          margin: split ? '8px 0 10px' : '14px auto 14px',
+          color: 'inherit',
+          fontFamily: 'inherit',
         }}
+        onClick={openFee}
+        aria-label="수수료 상세 열기"
       >
-        {won(animated)}
-      </div>
+        {won(animatedBill)}
+      </button>
       <div className="uline" style={{ width: 56, margin: split ? '0 0 12px' : '0 auto 16px' }} />
+
       <div
-        className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-[var(--muted)] ${
-          split ? 'justify-start text-[15px]' : 'justify-center text-[16.5px]'
+        className={`flex flex-wrap items-center gap-x-5 gap-y-2 ${
+          split ? 'justify-start text-[14px]' : 'justify-center text-[16.5px]'
         }`}
       >
-        <span className="font-extrabold" style={{ color: 'var(--teal)' }}>
-          전월 대비 +8.4%
+        <span className="text-[var(--muted)]">
+          비용 <b className="text-[var(--ink)] tabular">{split ? wonCompact(grand) : won(grand)}</b>
         </span>
-        {!split && <span className="meta-chip">검토 중</span>}
-        <span>업데이트 2026-06-23 01:20</span>
+        <span className="text-[var(--muted)]">
+          순이익{' '}
+          <b className="tabular" style={{ color: profit >= 0 ? 'var(--teal)' : 'var(--rose, #e34948)' }}>
+            {split ? wonCompact(profit) : won(profit)}
+          </b>
+        </span>
+        {!split && <span className="meta-chip">{totalUnits.toLocaleString('ko-KR')}세대</span>}
       </div>
+
+      {!split && (
+        <button
+          className="block bg-transparent border-0 p-0 cursor-pointer mx-auto mt-6 w-full max-w-[420px]"
+          onClick={openFee}
+          aria-label="목표분양률 설정 열기"
+        >
+          <FeeStrip doc={fee} height={40} />
+          <div className="text-[12px] text-[var(--muted)] mt-1.5 font-semibold tracking-[0.04em]">
+            목표분양률 · 정당 → D+6 누적 {fee.periods.reduce((a, p) => a + p.ratePct, 0)}%
+          </div>
+        </button>
+      )}
     </section>
   )
 }

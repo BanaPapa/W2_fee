@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as fee from "../fee.js";
 import type * as labor from "../labor.js";
 import type * as ledger from "../ledger.js";
 import type * as meal from "../meal.js";
@@ -22,6 +23,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  fee: typeof fee;
   labor: typeof labor;
   ledger: typeof ledger;
   meal: typeof meal;

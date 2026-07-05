@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
-import { stage, eventBlock, extraSlot, role, lineItem } from './validators'
+import { stage, eventBlock, extraSlot, role, lineItem, feeFields } from './validators'
 
 export default defineSchema({
   project: defineTable({
@@ -24,6 +24,8 @@ export default defineSchema({
     woesing: v.number(),
     dinnerRoleOverrides: v.record(v.string(), v.boolean()),
   }),
+
+  fee: defineTable(feeFields),
 
   ledgers: defineTable({
     category: v.union(v.literal('ad'), v.literal('operating'), v.literal('misc')),

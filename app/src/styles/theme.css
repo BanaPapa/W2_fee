@@ -343,6 +343,7 @@
 }
 
 /* ---------- category accent mapping ---------- */
+[data-c="fee"]   { --cat: color-mix(in oklch, var(--accent) 55%, var(--violet)); }
 [data-c="labor"] { --cat: var(--accent); }
 [data-c="meal"]  { --cat: var(--teal); }
 [data-c="ad"]    { --cat: var(--violet); }

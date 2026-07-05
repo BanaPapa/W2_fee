@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import type { Person } from '../lib/schedule'
-import { ppdP } from '../lib/schedule'
+import type { Person, YMD } from '../lib/schedule'
+import { ppdP, dayKeyOf, monthKeyOf } from '../lib/schedule'
 import type { ExtraSlot } from './projectStore'
 import { useProjectStore } from './projectStore'
 import { api } from '../../convex/_generated/api'
@@ -16,9 +16,9 @@ export const DEFAULT_SECTION_NAMES: Record<Section, string> = {
   other_long: '기타_장기',
 }
 
-const toMD = (iso: string): [number, number] => {
-  const [, m, d] = iso.split('-').map(Number)
-  return [m - 1, d]
+const toYMD = (iso: string): YMD => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return [y, m - 1, d]
 }
 
 const addDaysIso = (iso: string, days: number): string => {
@@ -28,11 +28,20 @@ const addDaysIso = (iso: string, days: number): string => {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
 }
 
+const fallbackYear = (): number =>
+  Number(useProjectStore.getState().periodStart.split('-')[0]) || new Date().getFullYear()
+
+/** new-hire fallback window when no stage/usagePeriod info is available */
+const defaultFallbackPerson = (): Person => {
+  const y = fallbackYear()
+  return { s: [y, 6, 1], e: [y, 9, 31] }
+}
+
 /** default person period for new hires in the "기타_단기" section: the main-sales (본영업) window */
-const mainStagePeriod = (): { s: [number, number]; e: [number, number] } | null => {
+const mainStagePeriod = (): { s: YMD; e: YMD } | null => {
   const main = useProjectStore.getState().stages.find((st) => st.id === 'main')
   if (!main) return null
-  return { s: toMD(main.start), e: toMD(main.end) }
+  return { s: toYMD(main.start), e: toYMD(main.end) }
 }
 
 /** 인력 사용기간 프리셋: 전체 / 사전 / 오픈 / 사후 */
@@ -47,27 +56,95 @@ export const USAGE_PERIOD_LABELS: Record<UsagePeriod, string> = {
 /** 인건비 산정방식: 개별(인원별 달력) / 집합(직무군 전체 1줄) */
 export type CostMode = 'individual' | 'aggregate'
 
-/** usagePeriod 프리셋 → 실제 ISO 날짜 범위. 단계 정보가 없으면 null. */
-const usagePeriodISO = (usage: UsagePeriod): { start: string; end: string } | null => {
+/** usagePeriod 프리셋 → 실제 ISO 날짜 범위. 단계 정보가 없으면 null. ('open'은 연속 구간이 아니라 별도 처리) */
+const usagePeriodISO = (usage: Exclude<UsagePeriod, 'open'>): { start: string; end: string } | null => {
   const proj = useProjectStore.getState()
   const main = proj.stages.find((st) => st.id === 'main')
   if (!main) return null
-  const rank1 = main.keyDates?.find((k) => k.key === 'rank1')?.date
   switch (usage) {
     case 'all':
       return { start: proj.periodStart, end: proj.periodEnd }
     case 'presales':
       return { start: proj.periodStart, end: addDaysIso(main.start, -1) }
-    case 'open':
-      return { start: addDaysIso(main.start, -1), end: rank1 ? addDaysIso(rank1, -1) : main.end }
     case 'postsales':
+      // 예당일 다음날부터 분양완료일까지 — 해를 넘어가도 그대로 전부 포함한다.
       return { start: addDaysIso(main.end, 1), end: proj.periodEnd }
   }
 }
 
-const usagePeriodMD = (usage: UsagePeriod): { s: [number, number]; e: [number, number] } | null => {
+/**
+ * '오픈' 사용기간: 연속 구간이 아니라 오픈 관련 특정 일자들만 근무일로 잡는다.
+ * - 오픈기간 3일: 오픈전일 · 오픈일 · 오픈 다음날 · 오픈 다다음날 (4일)
+ * - 오픈기간 10일: 오픈 8일전 ~ 5일전(4일) + 오픈일 · 다음날 · 다다음날(3일) = 총 7일
+ * - 오픈기간(3/10)과 무관하게 정당계약 전체 기간과 예당일도 항상 추가로 포함
+ * 그 사이(포함되지 않는) 날짜는 전부 비근무로 명시적으로 덮어써서, 근무기간(s~e)이
+ * 넓어도 실제 근무일수는 위 특정 일자들뿐이도록 한다.
+ */
+const openUsagePerson = (): Person | null => {
+  const main = useProjectStore.getState().stages.find((st) => st.id === 'main')
+  if (!main) return null
+  const openDate = main.keyDates?.find((k) => k.key === 'open')?.date
+  const contractDate = main.keyDates?.find((k) => k.key === 'contract')?.date
+  const altDate = main.keyDates?.find((k) => k.key === 'alt')?.date
+  if (!openDate || !contractDate || !altDate) return null
+
+  const openDays = main.openDays ?? 3
+  const contractDays = main.contractDays ?? 3
+
+  const dayKeyOfIso = (iso: string): string => {
+    const [y, m, d] = toYMD(iso)
+    return dayKeyOf(y, m, d)
+  }
+
+  const included = new Set<string>()
+  const markRange = (startIso: string, days: number) => {
+    for (let i = 0; i < days; i++) included.add(dayKeyOfIso(addDaysIso(startIso, i)))
+  }
+
+  let earliestIso: string
+  if (openDays === 10) {
+    earliestIso = addDaysIso(openDate, -8)
+    markRange(earliestIso, 4) // 오픈 8일전 ~ 5일전
+    markRange(openDate, 3) // 오픈일 · 다음날 · 다다음날
+  } else {
+    earliestIso = addDaysIso(openDate, -1)
+    markRange(earliestIso, 4) // 오픈전일 ~ 오픈 다다음날
+  }
+  markRange(contractDate, contractDays) // 정당계약 전체 기간
+  markRange(altDate, 1) // 예당일
+
+  const startIso = earliestIso
+  const endIso = altDate
+  const ov: Record<string, boolean> = {}
+  for (let cursor = startIso; ; cursor = addDaysIso(cursor, 1)) {
+    const key = dayKeyOfIso(cursor)
+    ov[key] = included.has(key)
+    if (cursor === endIso) break
+  }
+
+  return { s: toYMD(startIso), e: toYMD(endIso), ov }
+}
+
+const usagePeriodPerson = (usage: UsagePeriod): Person | null => {
+  if (usage === 'open') return openUsagePerson()
   const range = usagePeriodISO(usage)
-  return range ? { s: toMD(range.start), e: toMD(range.end) } : null
+  if (!range) return null
+  const s = toYMD(range.start)
+  const e = toYMD(range.end)
+  // 사후: 근무 패턴(5/6/7일) 선택과 무관하게 항상 매일 근무(7일)로 찍는다
+  if (usage === 'postsales') {
+    const pat: Record<string, number> = {}
+    let y = s[0]
+    let m = s[1]
+    const endKey = e[0] * 12 + e[1]
+    while (y * 12 + m <= endKey) {
+      pat[monthKeyOf(y, m)] = 7
+      m++
+      if (m > 11) { m = 0; y++ }
+    }
+    return { s, e, pat }
+  }
+  return { s, e }
 }
 
 export interface Role {
@@ -107,14 +184,14 @@ interface LaborState {
 
 // seeded from labor.html `roles`
 const SEED: Role[] = [
-  { name: '총괄 디렉터', daily: 420000, section: 'planning', people: [{ s: [6, 1], e: [9, 31] }] },
+  { name: '총괄 디렉터', daily: 420000, section: 'planning', people: [{ s: [2026, 6, 1], e: [2026, 9, 31] }] },
   {
     name: '기획 팀장',
     daily: 320000,
     section: 'planning',
     people: [
-      { s: [6, 8], e: [9, 15] },
-      { s: [6, 20], e: [9, 30] },
+      { s: [2026, 6, 8], e: [2026, 9, 15] },
+      { s: [2026, 6, 20], e: [2026, 9, 30] },
     ],
   },
   {
@@ -122,9 +199,9 @@ const SEED: Role[] = [
     daily: 240000,
     section: 'planning',
     people: [
-      { s: [6, 15], e: [9, 31] },
-      { s: [6, 15], e: [8, 31] },
-      { s: [7, 1], e: [9, 31] },
+      { s: [2026, 6, 15], e: [2026, 9, 31] },
+      { s: [2026, 6, 15], e: [2026, 8, 31] },
+      { s: [2026, 7, 1], e: [2026, 9, 31] },
     ],
   },
   {
@@ -132,30 +209,82 @@ const SEED: Role[] = [
     daily: 180000,
     section: 'planning',
     people: [
-      { s: [7, 1], e: [9, 10] },
-      { s: [7, 1], e: [9, 30] },
-      { s: [6, 20], e: [8, 31] },
-      { s: [7, 8], e: [9, 10] },
-      { s: [7, 1], e: [9, 10] },
-      { s: [6, 15], e: [9, 15] },
-      { s: [7, 1], e: [9, 30] },
-      { s: [7, 8], e: [8, 31] },
+      { s: [2026, 7, 1], e: [2026, 9, 10] },
+      { s: [2026, 7, 1], e: [2026, 9, 30] },
+      { s: [2026, 6, 20], e: [2026, 8, 31] },
+      { s: [2026, 7, 8], e: [2026, 9, 10] },
+      { s: [2026, 7, 1], e: [2026, 9, 10] },
+      { s: [2026, 6, 15], e: [2026, 9, 15] },
+      { s: [2026, 7, 1], e: [2026, 9, 30] },
+      { s: [2026, 7, 8], e: [2026, 8, 31] },
     ],
   },
 ]
+
+/**
+ * usagePeriod가 지정된 직무는 분양기간(오픈일/오픈기간/정당계약기간 등) 설정이 바뀔 때마다
+ * 즉시 재계산되어야 한다. 저장된 people의 s/e/ov를 항상 현재 분양기간 기준으로 다시 덮어쓴다.
+ */
+const resyncUsagePeriodRoles = (roles: Role[]): Role[] =>
+  roles.map((r) => {
+    if (!r.usagePeriod) return r
+    const person = usagePeriodPerson(r.usagePeriod)
+    if (!person) return r
+    return { ...r, people: r.people.map(() => ({ ...person })) }
+  })
+
+/**
+ * DB에는 연도 없이 월-일([month, day])만 저장된 예전 형식의 people이 남아있을 수 있다.
+ * s/e가 2개짜리 배열이면 프로젝트 시작연도를 붙이고, pat/ov 키도 연도 없는 예전 형식
+ * ("6", "8-15")이면 연도를 붙여 새 형식("2026-6", "2026-8-15")으로 변환한다.
+ */
+const migratePerson = (raw: unknown, year: number): Person => {
+  const p = raw as { s: number[]; e: number[]; pat?: Record<string, number>; ov?: Record<string, boolean>; extraOv?: Record<number, number> }
+  const migrateDate = (v: number[]): YMD => (v.length === 3 ? (v as YMD) : [year, v[0], v[1]])
+
+  let pat: Record<string, number> | undefined
+  if (p.pat) {
+    pat = {}
+    for (const k of Object.keys(p.pat)) {
+      pat[k.includes('-') ? k : monthKeyOf(year, Number(k))] = p.pat[k]
+    }
+  }
+
+  let ov: Record<string, boolean> | undefined
+  if (p.ov) {
+    ov = {}
+    for (const k of Object.keys(p.ov)) {
+      const parts = k.split('-')
+      if (parts.length === 2) {
+        const [m, d] = parts.map(Number)
+        ov[dayKeyOf(year, m, d)] = p.ov[k]
+      } else {
+        ov[k] = p.ov[k]
+      }
+    }
+  }
+
+  return { s: migrateDate(p.s), e: migrateDate(p.e), pat, ov, extraOv: p.extraOv }
+}
+
+const migrateRoles = (roles: Role[]): Role[] => {
+  const year = fallbackYear()
+  return roles.map((r) => ({ ...r, people: r.people.map((p) => migratePerson(p, year)) }))
+}
 
 export const useLaborStore = create<LaborState>()(
     (set) => ({
       hydrated: false,
       roles: SEED,
       sectionNames: DEFAULT_SECTION_NAMES,
-      hydrate: (doc) => set({ hydrated: true, roles: doc.roles, sectionNames: doc.sectionNames }),
+      hydrate: (doc) =>
+        set({ hydrated: true, roles: resyncUsagePeriodRoles(migrateRoles(doc.roles)), sectionNames: doc.sectionNames }),
       addRole: (section) =>
         set((s) => {
           const count = s.roles.filter((r) => (r.section ?? 'planning') === section).length
           if (count >= 8) return s
           const defaultPerson: Person =
-            section === 'other_short' ? mainStagePeriod() ?? { s: [6, 1], e: [9, 31] } : { s: [6, 1], e: [9, 31] }
+            section === 'other_short' ? mainStagePeriod() ?? defaultFallbackPerson() : defaultFallbackPerson()
           return {
             roles: [
               ...s.roles,
@@ -187,15 +316,15 @@ export const useLaborStore = create<LaborState>()(
               return { ...r, people: [...r.people, { ...r.people[0] }] }
             }
             if (r.usagePeriod) {
-              const np: Person = usagePeriodMD(r.usagePeriod) ?? { s: [6, 1], e: [9, 31] }
+              const np: Person = usagePeriodPerson(r.usagePeriod) ?? defaultFallbackPerson()
               return { ...r, people: [...r.people, np] }
             }
             if (r.section === 'other_short') {
-              const np: Person = mainStagePeriod() ?? { s: [6, 1], e: [9, 31] }
+              const np: Person = mainStagePeriod() ?? defaultFallbackPerson()
               return { ...r, people: [...r.people, np] }
             }
             const last = r.people[r.people.length - 1]
-            const np: Person = last ? { s: [...last.s], e: [...last.e] } : { s: [6, 1], e: [9, 31] }
+            const np: Person = last ? { s: [...last.s], e: [...last.e] } : defaultFallbackPerson()
             return { ...r, people: [...r.people, np] }
           }),
         })),
@@ -222,11 +351,13 @@ export const useLaborStore = create<LaborState>()(
           roles: s.roles.map((r, idx) => {
             if (idx !== i) return r
             if (usage === null) return { ...r, usagePeriod: undefined }
-            const md = usagePeriodMD(usage)
+            const person = usagePeriodPerson(usage)
             return {
               ...r,
               usagePeriod: usage,
-              people: md ? r.people.map(() => ({ s: md.s, e: md.e })) : r.people,
+              // 사후: 예당일 다음날 ~ 분양완료일 전 일정을 개별이 아닌 집합(인원 전체 공유)으로 표시
+              costMode: usage === 'postsales' ? 'aggregate' : r.costMode,
+              people: person ? r.people.map(() => ({ ...person })) : r.people,
             }
           }),
         })),
@@ -253,6 +384,17 @@ useLaborStore.subscribe((state, prev) => {
   pushLabor(state)
 })
 
+/** 분양기간(단계/오픈일/오픈기간/정당계약기간 등) 변경 시, usagePeriod가 걸린 직무들을 즉시 재계산 */
+useProjectStore.subscribe((state, prev) => {
+  if (!useLaborStore.getState().hydrated) return
+  const relevant =
+    state.stages !== prev.stages || state.periodStart !== prev.periodStart || state.periodEnd !== prev.periodEnd
+  if (!relevant) return
+  const { roles } = useLaborStore.getState()
+  if (!roles.some((r) => r.usagePeriod)) return
+  useLaborStore.setState({ roles: resyncUsagePeriodRoles(roles) })
+})
+
 /* ---------- pure calc selectors ---------- */
 export const personExtrasDays = (p: Person, extras: ExtraSlot[]): number =>
   extras.reduce((a, e, ei) => a + (p.extraOv?.[ei] ?? e.days), 0)
@@ -260,7 +402,12 @@ export const personExtrasDays = (p: Person, extras: ExtraSlot[]): number =>
 export const roleTotalDays = (r: Role, extras: ExtraSlot[]): number =>
   r.people.reduce((a, p) => a + ppdP(p) + personExtrasDays(p, extras), 0)
 
-export const roleTotal = (r: Role, extras: ExtraSlot[]): number => r.daily * roleTotalDays(r, extras)
+/** 인건비 산정에 쓰이는 순수 단가표 금액 (일 단가 × 일수). usagePeriod와 무관하게 항상 계산됨. */
+export const roleUnitPriceValue = (r: Role, extras: ExtraSlot[]): number => r.daily * roleTotalDays(r, extras)
+
+/** 사후(postsales) 직무는 인건비 자체에서는 0원 — 해당 금액은 식대로 전환되어 반영됨 (mealStore 참고) */
+export const roleTotal = (r: Role, extras: ExtraSlot[]): number =>
+  r.usagePeriod === 'postsales' ? 0 : roleUnitPriceValue(r, extras)
 
 export const laborTotal = (roles: Role[], extras: ExtraSlot[]): number =>
   roles.reduce((a, r) => a + roleTotal(r, extras), 0)

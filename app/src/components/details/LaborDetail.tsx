@@ -3,7 +3,7 @@ import Modal from '../ui/Modal'
 import DetailHeader from './DetailHeader'
 import { PlusIcon, MinusIcon, GearIcon } from '../icons'
 import { won, wonCompact } from '../../lib/format'
-import { YEAR, D, isWorkP, patOf, DOW, projectMonths as computeProjectMonths, toggleWorkDay, type Person } from '../../lib/schedule'
+import { D, isWorkP, patOf, DOW, projectMonths as computeProjectMonths, toggleWorkDay, monthCellKey, monthKeyOf, type Person, type MonthCell } from '../../lib/schedule'
 import {
   useLaborStore,
   laborTotal,
@@ -102,7 +102,7 @@ export default function LaborDetail() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
   const [settingsRole, setSettingsRole] = useState<number | null>(null)
   const [integratedOpen, setIntegratedOpen] = useState(false)
-  const [detailMonth, setDetailMonth] = useState<number | null>(null)
+  const [detailMonth, setDetailMonth] = useState<MonthCell | null>(null)
 
   const total = laborTotal(roles, extras)
 
@@ -568,6 +568,20 @@ export default function LaborDetail() {
   )
 }
 
+/** s~e 전체 구간(해가 넘어가도)에 동일한 패턴 값을 채운 pat 맵을 만든다 */
+const buildPattern = (s: Person['s'], e: Person['e'], v: number): Record<string, number> => {
+  const pat: Record<string, number> = {}
+  let y = s[0]
+  let m = s[1]
+  const endKey = e[0] * 12 + e[1]
+  while (y * 12 + m <= endKey) {
+    pat[monthKeyOf(y, m)] = v
+    m++
+    if (m > 11) { m = 0; y++ }
+  }
+  return pat
+}
+
 function CalendarModal({
   role,
   projectMonths,
@@ -575,36 +589,32 @@ function CalendarModal({
   scrollToMonth,
 }: {
   role: Role
-  projectMonths: number[]
+  projectMonths: MonthCell[]
   onUpdatePerson: (pi: number, patch: Partial<Person>) => void
-  scrollToMonth?: number
+  scrollToMonth?: MonthCell
 }) {
   const monthRefs = useRef<Record<number, HTMLDivElement | null>>({})
   useEffect(() => {
     if (scrollToMonth == null) return
-    monthRefs.current[scrollToMonth]?.scrollIntoView({ block: 'start' })
+    monthRefs.current[monthCellKey(scrollToMonth)]?.scrollIntoView({ block: 'start' })
   }, [scrollToMonth])
 
   const [monthOpenOverride, setMonthOpenOverride] = useState<Record<number, boolean>>({})
-  const toggleMonth = (m: number, autoOpen: boolean) =>
-    setMonthOpenOverride((o) => ({ ...o, [m]: !(o[m] ?? autoOpen) }))
+  const toggleMonth = (mKey: number, autoOpen: boolean) =>
+    setMonthOpenOverride((o) => ({ ...o, [mKey]: !(o[mKey] ?? autoOpen) }))
 
-  const toggleDay = (pi: number, month: number, day: number) => {
-    onUpdatePerson(pi, toggleWorkDay(role.people[pi], month, day))
+  const toggleDay = (pi: number, year: number, month: number, day: number) => {
+    onUpdatePerson(pi, toggleWorkDay(role.people[pi], year, month, day))
   }
 
   const setPattern = (pi: number, v: number) => {
     const p = role.people[pi]
-    const pat: Record<number, number> = {}
-    for (let m = p.s[0]; m <= p.e[0]; m++) pat[m] = v
-    onUpdatePerson(pi, { pat, ov: {} })
+    onUpdatePerson(pi, { pat: buildPattern(p.s, p.e, v), ov: {} })
   }
 
   const setPatternAll = (v: number) => {
     role.people.forEach((p, pi) => {
-      const pat: Record<number, number> = {}
-      for (let m = p.s[0]; m <= p.e[0]; m++) pat[m] = v
-      onUpdatePerson(pi, { pat, ov: {} })
+      onUpdatePerson(pi, { pat: buildPattern(p.s, p.e, v), ov: {} })
     })
   }
 
@@ -630,7 +640,7 @@ function CalendarModal({
   }, [stages])
 
   const effectivelyWorks = (date: Date, p: Person): boolean => {
-    const iso = `${YEAR}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
     const inPersonRange = date >= D(p.s) && date <= D(p.e)
     if (keyDates.has(iso) && inPersonRange) return true
     return isWorkP(date, p)
@@ -665,7 +675,7 @@ function CalendarModal({
                       borderRadius: 6, color: 'var(--fg)', appearance: 'none',
                       WebkitAppearance: 'none', cursor: 'pointer', fontFamily: 'inherit',
                     }}
-                    value={patOf(p, p.s[0])}
+                    value={patOf(p, p.s[0], p.s[1])}
                     onChange={(e) => unifyPattern ? setPatternAll(Number(e.target.value)) : setPattern(pi, Number(e.target.value))}
                   >
                     {PATTERNS.map((pt) => (
@@ -682,29 +692,30 @@ function CalendarModal({
 
       {/* 월별 달력 — 세로 스크롤 */}
       <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 22, paddingTop: 14, paddingBottom: 12, paddingLeft: 25, paddingRight: 25, scrollbarGutter: 'stable' } as React.CSSProperties}>
-        {projectMonths.map((m) => {
-          const daysInM = new Date(YEAR, m + 1, 0).getDate()
+        {projectMonths.map(({ year, month: m }) => {
+          const mKey = monthCellKey({ year, month: m })
+          const daysInM = new Date(year, m + 1, 0).getDate()
           const days = Array.from({ length: daysInM }, (_, i) => i + 1)
           const dayTotal = (d: number) =>
-            role.people.filter((p) => effectivelyWorks(new Date(YEAR, m, d), p)).length
+            role.people.filter((p) => effectivelyWorks(new Date(year, m, d), p)).length
           const personMonthDays = (pi: number) =>
-            days.filter((d) => effectivelyWorks(new Date(YEAR, m, d), role.people[pi])).length
+            days.filter((d) => effectivelyWorks(new Date(year, m, d), role.people[pi])).length
           const grandTotal = days.reduce((n, d) => n + dayTotal(d), 0)
           const autoOpen = !(grandTotal === 0 && role.usagePeriod !== 'all')
-          const isOpen = monthOpenOverride[m] ?? autoOpen
+          const isOpen = monthOpenOverride[mKey] ?? autoOpen
 
           return (
-            <div key={m} ref={(el) => { monthRefs.current[m] = el }}>
+            <div key={mKey} ref={(el) => { monthRefs.current[mKey] = el }}>
               {/* 월 라벨 */}
               <div
                 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7, cursor: 'pointer', userSelect: 'none' }}
-                onClick={() => toggleMonth(m, autoOpen)}
+                onClick={() => toggleMonth(mKey, autoOpen)}
               >
                 <span style={{ fontSize: 12, color: 'var(--muted)', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', display: 'inline-block' }}>
                   ▸
                 </span>
                 <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
-                  {m + 1}월
+                  {year}년 {m + 1}월
                 </span>
                 <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                 <span style={{ fontSize: 16, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
@@ -726,9 +737,9 @@ function CalendarModal({
                         인원
                       </th>
                       {days.map((d) => {
-                        const dow = new Date(YEAR, m, d).getDay()
+                        const dow = new Date(year, m, d).getDay()
                         const isSat = dow === 6, isSun = dow === 0
-                        const iso = `${YEAR}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                        const iso = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
                         const kdEntry = keyDates.get(iso)
                         const kdc = kdEntry ? KEY_DATE_COLORS[kdEntry.type] : null
                         return (
@@ -765,9 +776,9 @@ function CalendarModal({
                           {isAggregate ? `전체 ${role.people.length}명` : `#${pi + 1}`}
                         </td>
                         {days.map((d) => {
-                          const date = new Date(YEAR, m, d)
+                          const date = new Date(year, m, d)
                           const inRange = date >= D(p.s) && date <= D(p.e)
-                          const iso = `${YEAR}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                          const iso = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
                           const kdEntry = keyDates.get(iso)
                           const kdc = kdEntry ? KEY_DATE_COLORS[kdEntry.type] : null
                           const works = effectivelyWorks(date, p)
@@ -795,7 +806,7 @@ function CalendarModal({
                           return (
                             <td
                               key={d}
-                              onClick={() => toggleDay(pi, m, d)}
+                              onClick={() => toggleDay(pi, year, m, d)}
                               title={!inRange ? '클릭: 근무일로 추가' : works ? '클릭: 휴무 처리' : '클릭: 근무 처리'}
                               style={{
                                 height: 28, textAlign: 'center', padding: '2px 1px',
@@ -861,8 +872,8 @@ function IntegratedCalendarModal({
   onOpenRoleCalendar,
 }: {
   roles: Role[]
-  projectMonths: number[]
-  onOpenRoleCalendar: (roleIndex: number, month: number) => void
+  projectMonths: MonthCell[]
+  onOpenRoleCalendar: (roleIndex: number, month: MonthCell) => void
 }) {
   const updatePerson = useLaborStore((s) => s.updatePerson)
   const stages = useProjectStore((s) => s.stages)
@@ -888,17 +899,17 @@ function IntegratedCalendarModal({
   }, [stages])
 
   const effectivelyWorks = (date: Date, p: Person): boolean => {
-    const iso = `${YEAR}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
     const inPersonRange = date >= D(p.s) && date <= D(p.e)
     if (keyDates.has(iso) && inPersonRange) return true
     return isWorkP(date, p)
   }
 
   const roleWorksInPeriod = (role: Role): boolean =>
-    projectMonths.some((m) => {
-      const daysInM = new Date(YEAR, m + 1, 0).getDate()
+    projectMonths.some(({ year, month: m }) => {
+      const daysInM = new Date(year, m + 1, 0).getDate()
       for (let d = 1; d <= daysInM; d++) {
-        const date = new Date(YEAR, m, d)
+        const date = new Date(year, m, d)
         if (role.people.some((p) => effectivelyWorks(date, p))) return true
       }
       return false
@@ -911,6 +922,7 @@ function IntegratedCalendarModal({
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [popover, setPopover] = useState<{
     roleIndex: number
+    year: number
     m: number
     d: number
     top: number
@@ -918,8 +930,8 @@ function IntegratedCalendarModal({
   } | null>(null)
   const popoverRole = popover ? roles[popover.roleIndex] : null
 
-  const togglePersonDay = (roleIndex: number, personIndex: number, m: number, d: number, p: Person) => {
-    updatePerson(roleIndex, personIndex, toggleWorkDay(p, m, d))
+  const togglePersonDay = (roleIndex: number, personIndex: number, year: number, m: number, d: number, p: Person) => {
+    updatePerson(roleIndex, personIndex, toggleWorkDay(p, year, m, d))
   }
 
   return (
@@ -927,12 +939,13 @@ function IntegratedCalendarModal({
       <div
         onScroll={() => setPopover(null)}
         style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 22, paddingTop: 14, paddingBottom: 12, paddingLeft: 25, paddingRight: 25, scrollbarGutter: 'stable' } as React.CSSProperties}>
-        {projectMonths.map((m) => {
-          const daysInM = new Date(YEAR, m + 1, 0).getDate()
+        {projectMonths.map(({ year, month: m }) => {
+          const mKey = monthCellKey({ year, month: m })
+          const daysInM = new Date(year, m + 1, 0).getDate()
           const days = Array.from({ length: daysInM }, (_, i) => i + 1)
 
           const roleCount = (role: Role, d: number): number => {
-            const date = new Date(YEAR, m, d)
+            const date = new Date(year, m, d)
             return role.people.filter((p) => effectivelyWorks(date, p)).length
           }
 
@@ -945,10 +958,10 @@ function IntegratedCalendarModal({
           const grandTotal = days.reduce((sum, d) => sum + dayGrandTotal(d), 0)
 
           return (
-            <div key={m}>
+            <div key={mKey}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
                 <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
-                  {m + 1}월
+                  {year}년 {m + 1}월
                 </span>
                 <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                 <span style={{ fontSize: 16, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
@@ -968,9 +981,9 @@ function IntegratedCalendarModal({
                         직무
                       </th>
                       {days.map((d) => {
-                        const dow = new Date(YEAR, m, d).getDay()
+                        const dow = new Date(year, m, d).getDay()
                         const isSat = dow === 6, isSun = dow === 0
-                        const iso = `${YEAR}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                        const iso = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
                         const kdEntry = keyDates.get(iso)
                         const kdc = kdEntry ? KEY_DATE_COLORS[kdEntry.type] : null
                         return (
@@ -1015,9 +1028,9 @@ function IntegratedCalendarModal({
                           {days.map((d) => {
                             const count = roleCount(role, d)
                             const maxPeople = role.people.length
-                            const dow = new Date(YEAR, m, d).getDay()
+                            const dow = new Date(year, m, d).getDay()
                             const isSat = dow === 6, isSun = dow === 0
-                            const iso = `${YEAR}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                            const iso = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
                             const kdEntry = keyDates.get(iso)
                             const kdc = kdEntry ? KEY_DATE_COLORS[kdEntry.type] : null
 
@@ -1040,7 +1053,7 @@ function IntegratedCalendarModal({
                                   const cellRect = e.currentTarget.getBoundingClientRect()
                                   const wrapRect = wrapperRef.current!.getBoundingClientRect()
                                   setPopover({
-                                    roleIndex: ri, m, d,
+                                    roleIndex: ri, year, m, d,
                                     top: cellRect.bottom - wrapRect.top + 6,
                                     left: Math.min(cellRect.left - wrapRect.left, wrapRect.width - 200),
                                   })
@@ -1067,9 +1080,9 @@ function IntegratedCalendarModal({
                       <td style={{ padding: '5px 8px 3px 0', fontWeight: 700, color: 'var(--ink)', fontSize: 15 }}>합계</td>
                       {days.map((d) => {
                         const t = dayGrandTotal(d)
-                        const dow = new Date(YEAR, m, d).getDay()
+                        const dow = new Date(year, m, d).getDay()
                         const isSat = dow === 6, isSun = dow === 0
-                        const iso = `${YEAR}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                        const iso = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
                         const kdc = (() => { const e = keyDates.get(iso); return e ? KEY_DATE_COLORS[e.type] : null })()
                         return (
                           <td key={d} style={{
@@ -1107,17 +1120,17 @@ function IntegratedCalendarModal({
             }}
           >
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', marginBottom: 6, whiteSpace: 'nowrap' }}>
-              {popoverRole!.name} · {popover.m + 1}월 {popover.d}일
+              {popoverRole!.name} · {popover.year}년 {popover.m + 1}월 {popover.d}일
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {popoverRole!.people.map((p, pi) => {
-                const date = new Date(YEAR, popover.m, popover.d)
+                const date = new Date(popover.year, popover.m, popover.d)
                 const inRange = date >= D(p.s) && date <= D(p.e)
                 const works = isWorkP(date, p)
                 return (
                   <button
                     key={pi}
-                    onClick={() => togglePersonDay(popover.roleIndex, pi, popover.m, popover.d, p)}
+                    onClick={() => togglePersonDay(popover.roleIndex, pi, popover.year, popover.m, popover.d, p)}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14,
                       padding: '5px 8px', borderRadius: 6, border: 'none', textAlign: 'left',
@@ -1135,7 +1148,7 @@ function IntegratedCalendarModal({
             </div>
             <button
               onClick={() => {
-                onOpenRoleCalendar(popover.roleIndex, popover.m)
+                onOpenRoleCalendar(popover.roleIndex, { year: popover.year, month: popover.m })
                 setPopover(null)
               }}
               style={{
