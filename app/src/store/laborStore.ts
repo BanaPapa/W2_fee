@@ -1,20 +1,32 @@
 import { create } from 'zustand'
 import type { Person, YMD } from '../lib/schedule'
-import { ppdP, dayKeyOf, monthKeyOf } from '../lib/schedule'
+import { ppdP, dayKeyOf, monthKeyOf, monthWorkP, monthsOf } from '../lib/schedule'
 import type { ExtraSlot } from './projectStore'
 import { useProjectStore } from './projectStore'
 import { api } from '../../convex/_generated/api'
-import { convexClient } from '../lib/convexClient'
+import { persistMutation } from '../lib/convexClient'
 import { debounce } from '../lib/debounce'
 
-export type Section = 'planning' | 'sales' | 'other_short' | 'other_long'
+/** 인건비 카드 덱의 열 수 — 슬롯 행/열 계산과 화면 렌더링이 이 값을 공유한다 */
+export const GRID_COLS = 5
+
+export type Section = 'planning' | 'sales' | 'other'
 
 export const DEFAULT_SECTION_NAMES: Record<Section, string> = {
   planning: '기획',
   sales: '영업',
-  other_short: '기타_단기',
-  other_long: '기타_장기',
+  other: '기타',
 }
+
+/** 구버전 문서의 기타_단기/기타_장기 섹션은 '기타' 하나로 통합한다 */
+const migrateSection = (s: string | undefined): Section =>
+  s === 'sales' ? 'sales' : s === 'other' || s === 'other_short' || s === 'other_long' ? 'other' : 'planning'
+
+const migrateSectionNames = (raw: Record<string, string>): Record<Section, string> => ({
+  planning: raw.planning ?? DEFAULT_SECTION_NAMES.planning,
+  sales: raw.sales ?? DEFAULT_SECTION_NAMES.sales,
+  other: raw.other ?? DEFAULT_SECTION_NAMES.other,
+})
 
 const toYMD = (iso: string): YMD => {
   const [y, m, d] = iso.split('-').map(Number)
@@ -37,7 +49,7 @@ const defaultFallbackPerson = (): Person => {
   return { s: [y, 6, 1], e: [y, 9, 31] }
 }
 
-/** default person period for new hires in the "기타_단기" section: the main-sales (본영업) window */
+/** default person period for new hires in the "기타" section: the main-sales (본영업) window */
 const mainStagePeriod = (): { s: YMD; e: YMD } | null => {
   const main = useProjectStore.getState().stages.find((st) => st.id === 'main')
   if (!main) return null
@@ -152,10 +164,22 @@ export interface Role {
   daily: number
   people: Person[]
   section: Section
+  /**
+   * 인건비 카드 덱에서의 고정 위치(0-based, row-major). 카드를 다른 칸으로 옮기면 이 값만
+   * 바뀌고 다른 직무의 slot은 그대로 유지된다 — 옮긴 자리는 빈 칸으로 남고 뒤 카드가
+   * 앞으로 당겨오지 않는다. 미설정이면 배열 순서를 그대로 slot으로 취급한다(구버전 호환).
+   */
+  slot?: number
   /** 인력 사용기간 프리셋. 미설정이면 자유롭게 개별 편집 (기존 동작) */
   usagePeriod?: UsagePeriod
   /** 인건비 산정방식. 미설정이면 개별(기존 동작)로 취급 */
   costMode?: CostMode
+  /**
+   * 집합(aggregate) 산정방식 전용: 특정 달의 투입 인원을 기본 인원수(people.length)와
+   * 다르게 잡는 오버라이드. 키는 monthKeyOf(year, month0) 형식("2026-6").
+   * 키가 없는 달은 people.length를 그대로 쓴다.
+   */
+  monthlyHeadcount?: Record<string, number>
 }
 
 export interface LaborDoc {
@@ -168,7 +192,8 @@ interface LaborState {
   roles: Role[]
   sectionNames: Record<Section, string>
   hydrate: (doc: LaborDoc) => void
-  addRole: (section: Section) => void
+  /** slot을 지정하면 그 칸에 정확히 배정하고, 생략하면 가장 작은 빈 슬롯에 배정한다 */
+  addRole: (section: Section, slot?: number) => void
   changeRoleSection: (i: number, section: Section) => void
   removeRole: (i: number) => void
   reorderRole: (from: number, to: number) => void
@@ -180,6 +205,20 @@ interface LaborState {
   renameSection: (section: Section, name: string) => void
   setRoleUsagePeriod: (i: number, usage: UsagePeriod | null) => void
   setRoleCostMode: (i: number, mode: CostMode) => void
+  setMonthHeadcount: (i: number, year: number, month: number, count: number) => void
+  /**
+   * 카드 덱에서 직무를 다른 행/빈 칸으로 옮긴다. 목표 행에서는 항상 그 행의 맨 앞 빈 자리에
+   * 배치되고(왼쪽 정렬 유지), 원래 있던 행은 뒤 칸이 앞으로 당겨져 빈틈 없이 압축된다.
+   */
+  moveRoleToSlot: (i: number, slot: number) => void
+  /** 같은 행 안에서 두 직무의 위치를 맞바꾼다(순서 변경). 다른 행끼리는 사용하지 않는다. */
+  swapRoleSlots: (i: number, j: number) => void
+  /**
+   * 다른 행에 있는 카드를 beforeIdx 카드의 자리에 끼워 넣는다. beforeIdx와 그 뒤(같은 행,
+   * 같은 칸 이상)의 카드들은 한 칸씩 오른쪽으로 밀린다. 목표 행이 이미 5장 꽉 찼으면
+   * 아무 일도 하지 않는다. 원래 있던 행은 뒤 칸이 앞으로 당겨져 압축된다.
+   */
+  insertRoleBefore: (fromIdx: number, beforeIdx: number) => void
 }
 
 // seeded from labor.html `roles`
@@ -269,7 +308,46 @@ const migratePerson = (raw: unknown, year: number): Person => {
 
 const migrateRoles = (roles: Role[]): Role[] => {
   const year = fallbackYear()
-  return roles.map((r) => ({ ...r, people: r.people.map((p) => migratePerson(p, year)) }))
+  const withFields = roles.map((r) => ({
+    ...r,
+    section: migrateSection(r.section),
+    people: r.people.map((p) => migratePerson(p, year)),
+  }))
+  return assignMissingSlots(withFields)
+}
+
+/** slot이 없는(구버전) 직무들에게, 이미 쓰인 슬롯을 피해 가장 작은 빈 슬롯부터 순서대로 배정한다 */
+const assignMissingSlots = (roles: Role[]): Role[] => {
+  const used = new Set(roles.flatMap((r) => (r.slot != null ? [r.slot] : [])))
+  let next = 0
+  const nextFree = () => {
+    while (used.has(next)) next++
+    used.add(next)
+    return next
+  }
+  return roles.map((r) => (r.slot != null ? r : { ...r, slot: nextFree() }))
+}
+
+/** 현재 쓰이지 않는 슬롯 중 가장 작은 값 — 새 직무 추가 시 배정 */
+const nextFreeSlot = (roles: Role[]): number => {
+  const used = new Set(roles.map((r, i) => r.slot ?? i))
+  let n = 0
+  while (used.has(n)) n++
+  return n
+}
+
+const slotOf = (r: Role, idx: number): number => r.slot ?? idx
+const rowOf = (slot: number): number => Math.floor(slot / GRID_COLS)
+
+/** 해당 행에 있는 직무들을 원래 순서(열 오름차순) 그대로, 왼쪽부터 빈틈 없이 다시 채운다 */
+const compactRow = (roles: Role[], row: number): Role[] => {
+  const inRow = roles
+    .map((r, idx) => ({ idx, slot: slotOf(r, idx) }))
+    .filter(({ slot }) => rowOf(slot) === row)
+    .sort((a, b) => a.slot - b.slot)
+  const rowStart = row * GRID_COLS
+  const newSlotByIdx = new Map(inRow.map(({ idx }, i) => [idx, rowStart + i]))
+  return roles.map((r, idx) => (newSlotByIdx.has(idx) ? { ...r, slot: newSlotByIdx.get(idx) } : r))
 }
 
 export const useLaborStore = create<LaborState>()(
@@ -278,17 +356,25 @@ export const useLaborStore = create<LaborState>()(
       roles: SEED,
       sectionNames: DEFAULT_SECTION_NAMES,
       hydrate: (doc) =>
-        set({ hydrated: true, roles: resyncUsagePeriodRoles(migrateRoles(doc.roles)), sectionNames: doc.sectionNames }),
-      addRole: (section) =>
+        set({
+          hydrated: true,
+          roles: resyncUsagePeriodRoles(migrateRoles(doc.roles)),
+          sectionNames: migrateSectionNames(doc.sectionNames),
+        }),
+      addRole: (section, slot) =>
         set((s) => {
-          const count = s.roles.filter((r) => (r.section ?? 'planning') === section).length
-          if (count >= 8) return s
           const defaultPerson: Person =
-            section === 'other_short' ? mainStagePeriod() ?? defaultFallbackPerson() : defaultFallbackPerson()
+            section === 'other' ? mainStagePeriod() ?? defaultFallbackPerson() : defaultFallbackPerson()
           return {
             roles: [
               ...s.roles,
-              { name: '새 직무 ' + (s.roles.length + 1), daily: 200000, section, people: [defaultPerson] },
+              {
+                name: '새 직무 ' + (s.roles.length + 1),
+                daily: 200000,
+                section,
+                slot: slot ?? nextFreeSlot(s.roles),
+                people: [defaultPerson],
+              },
             ],
           }
         }),
@@ -296,7 +382,12 @@ export const useLaborStore = create<LaborState>()(
         set((s) => ({
           roles: s.roles.map((r, idx) => (idx === i ? { ...r, section } : r)),
         })),
-      removeRole: (i) => set((s) => ({ roles: s.roles.filter((_, idx) => idx !== i) })),
+      removeRole: (i) =>
+        set((s) => {
+          const removedSlot = slotOf(s.roles[i], i)
+          const rest = s.roles.filter((_, idx) => idx !== i)
+          return { roles: compactRow(rest, rowOf(removedSlot)) }
+        }),
       reorderRole: (from, to) =>
         set((s) => {
           const roles = [...s.roles]
@@ -319,7 +410,7 @@ export const useLaborStore = create<LaborState>()(
               const np: Person = usagePeriodPerson(r.usagePeriod) ?? defaultFallbackPerson()
               return { ...r, people: [...r.people, np] }
             }
-            if (r.section === 'other_short') {
+            if (r.section === 'other') {
               const np: Person = mainStagePeriod() ?? defaultFallbackPerson()
               return { ...r, people: [...r.people, np] }
             }
@@ -369,14 +460,86 @@ export const useLaborStore = create<LaborState>()(
               const template = r.people[0]
               return { ...r, costMode: mode, people: r.people.map(() => ({ ...template })) }
             }
-            return { ...r, costMode: mode }
+            // 개별로 돌아가면 집합 전용 월별 인원 오버라이드는 의미가 없으므로 버린다
+            return { ...r, costMode: mode, monthlyHeadcount: undefined }
           }),
         })),
+      setMonthHeadcount: (i, year, month, count) =>
+        set((s) => ({
+          roles: s.roles.map((r, idx) => {
+            if (idx !== i) return r
+            const key = monthKeyOf(year, month)
+            const next = { ...(r.monthlyHeadcount ?? {}) }
+            if (count === r.people.length) {
+              delete next[key]
+            } else {
+              next[key] = Math.max(0, count)
+            }
+            return { ...r, monthlyHeadcount: Object.keys(next).length > 0 ? next : undefined }
+          }),
+        })),
+      moveRoleToSlot: (i, slot) =>
+        set((s) => {
+          const role = s.roles[i]
+          if (!role) return s
+          const fromSlot = slotOf(role, i)
+          const fromRow = rowOf(fromSlot)
+          const toRow = rowOf(slot)
+          if (fromRow === toRow) return s // 같은 행 이동은 swapRoleSlots로 처리한다
+
+          const occupantsInTargetRow = s.roles.filter((r, idx) => idx !== i && rowOf(slotOf(r, idx)) === toRow).length
+          if (occupantsInTargetRow >= GRID_COLS) return s // 목표 행이 이미 가득 찼으면 옮길 수 없다
+          // 목표 행에서는 어떤 빈 칸에 놓아도 그 행의 맨 앞 빈 자리(왼쪽 정렬)에 배치한다
+          const actualSlot = toRow * GRID_COLS + occupantsInTargetRow
+
+          let next = s.roles.map((r, idx) => (idx === i ? { ...r, slot: actualSlot } : r))
+          next = compactRow(next, fromRow) // 원래 있던 행은 뒤 칸이 앞으로 당겨진다
+          return { roles: next }
+        }),
+      swapRoleSlots: (i, j) =>
+        set((s) => {
+          const a = s.roles[i]
+          const b = s.roles[j]
+          if (!a || !b) return s
+          const slotA = slotOf(a, i)
+          const slotB = slotOf(b, j)
+          if (rowOf(slotA) !== rowOf(slotB)) return s // 다른 행끼리는 맞바꾸지 않는다
+          return {
+            roles: s.roles.map((r, idx) =>
+              idx === i ? { ...r, slot: slotB } : idx === j ? { ...r, slot: slotA } : r,
+            ),
+          }
+        }),
+      insertRoleBefore: (fromIdx, beforeIdx) =>
+        set((s) => {
+          const fromRole = s.roles[fromIdx]
+          const beforeRole = s.roles[beforeIdx]
+          if (!fromRole || !beforeRole) return s
+          const fromSlot = slotOf(fromRole, fromIdx)
+          const beforeSlot = slotOf(beforeRole, beforeIdx)
+          const fromRow = rowOf(fromSlot)
+          const targetRow = rowOf(beforeSlot)
+          if (fromRow === targetRow) return s // 같은 행은 swapRoleSlots로 처리한다
+
+          const occupantsInTargetRow = s.roles.filter((r, idx) => idx !== fromIdx && rowOf(slotOf(r, idx)) === targetRow).length
+          if (occupantsInTargetRow >= GRID_COLS) return s // 목표 행이 이미 가득 찼으면 끼워 넣을 수 없다
+
+          const targetCol = beforeSlot % GRID_COLS
+          // beforeIdx와 그 뒤(같은 행, 같은 칸 이상)의 카드들을 한 칸씩 오른쪽으로 민다
+          let next = s.roles.map((r, idx) => {
+            if (idx === fromIdx) return r
+            const slot = slotOf(r, idx)
+            return rowOf(slot) === targetRow && slot % GRID_COLS >= targetCol ? { ...r, slot: slot + 1 } : r
+          })
+          next = next.map((r, idx) => (idx === fromIdx ? { ...r, slot: targetRow * GRID_COLS + targetCol } : r))
+          next = compactRow(next, fromRow) // 원래 있던 행은 뒤 칸이 앞으로 당겨진다
+          return { roles: next }
+        }),
     }),
 )
 
 const pushLabor = debounce((state: LaborState) => {
-  convexClient.mutation(api.labor.set, { roles: state.roles, sectionNames: state.sectionNames })
+  persistMutation(api.labor.set, { roles: state.roles, sectionNames: state.sectionNames })
 }, 400)
 
 useLaborStore.subscribe((state, prev) => {
@@ -399,8 +562,34 @@ useProjectStore.subscribe((state, prev) => {
 export const personExtrasDays = (p: Person, extras: ExtraSlot[]): number =>
   extras.reduce((a, e, ei) => a + (p.extraOv?.[ei] ?? e.days), 0)
 
+/** 해당 (연, 월)에 이 직무가 투입하는 인원수. 집합 모드면 월별 오버라이드를 우선 적용. */
+export const roleMonthHeadcount = (r: Role, year: number, month: number): number =>
+  r.costMode === 'aggregate'
+    ? r.monthlyHeadcount?.[monthKeyOf(year, month)] ?? r.people.length
+    : r.people.length
+
+/** 해당 (연, 월)의 총 근무 명·일 수. 집합 모드면 대표 일정 × 그 달 인원수. */
+export const roleMonthDays = (r: Role, year: number, month: number): number => {
+  if (r.costMode === 'aggregate') {
+    const template = r.people[0]
+    if (!template) return 0
+    return monthWorkP(template, year, month) * roleMonthHeadcount(r, year, month)
+  }
+  return r.people.reduce((a, p) => a + monthWorkP(p, year, month), 0)
+}
+
+/** 추가 슬롯(extras)을 제외한 순수 스케줄 근무 명·일 수 */
+export const roleScheduleDays = (r: Role): number => {
+  if (r.costMode === 'aggregate') {
+    const template = r.people[0]
+    if (!template) return 0
+    return monthsOf(template).reduce((a, { year, month }) => a + roleMonthDays(r, year, month), 0)
+  }
+  return r.people.reduce((a, p) => a + ppdP(p), 0)
+}
+
 export const roleTotalDays = (r: Role, extras: ExtraSlot[]): number =>
-  r.people.reduce((a, p) => a + ppdP(p) + personExtrasDays(p, extras), 0)
+  roleScheduleDays(r) + r.people.reduce((a, p) => a + personExtrasDays(p, extras), 0)
 
 /** 인건비 산정에 쓰이는 순수 단가표 금액 (일 단가 × 일수). usagePeriod와 무관하게 항상 계산됨. */
 export const roleUnitPriceValue = (r: Role, extras: ExtraSlot[]): number => r.daily * roleTotalDays(r, extras)
@@ -414,7 +603,7 @@ export const laborTotal = (roles: Role[], extras: ExtraSlot[]): number =>
 
 /** total scheduled work-days across all people, used by meal auto-link */
 export const laborWorkDays = (roles: Role[]): number =>
-  roles.reduce((a, r) => a + r.people.reduce((b, p) => b + ppdP(p), 0), 0)
+  roles.reduce((a, r) => a + roleScheduleDays(r), 0)
 
 export const laborHeadcount = (roles: Role[]): number =>
   roles.reduce((a, r) => a + r.people.length, 0)

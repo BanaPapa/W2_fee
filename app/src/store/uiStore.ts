@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type ModalId = 'period' | 'trend' | 'settings' | null
+export type ModalId = 'period' | 'target' | 'trend' | 'settings' | null
 
 interface UIState {
   modal: ModalId

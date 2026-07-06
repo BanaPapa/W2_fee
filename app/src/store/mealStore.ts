@@ -1,19 +1,28 @@
 import { create } from 'zustand'
-import { ppdP } from '../lib/schedule'
-import { roleUnitPriceValue, type Role } from './laborStore'
+import { roleUnitPriceValue, roleScheduleDays, type Role } from './laborStore'
 import type { ExtraSlot } from './projectStore'
 import { api } from '../../convex/_generated/api'
-import { convexClient } from '../lib/convexClient'
+import { persistMutation } from '../lib/convexClient'
 import { debounce } from '../lib/debounce'
+
+export const DEFAULT_MEAL_TAB_NAMES: Record<string, string> = {
+  lunch: '중식비',
+  dinner: '석식비',
+  woesing: '회식',
+  postsales: '조직 일비',
+}
 
 export interface MealDoc {
   lunchPerDay: number
   dinnerPerDay: number
   woesing: number
   dinnerRoleOverrides: Record<string, boolean>
+  /** 탭 카드 이름 오버라이드 (더블클릭으로 수정). 없으면 기본 이름 사용 */
+  tabNames?: Record<string, string>
 }
 
 export interface MealState extends MealDoc {
+  tabNames: Record<string, string>
   hydrated: boolean
   hydrate: (doc: MealDoc) => void
   setLunch: (v: number) => void
@@ -21,6 +30,7 @@ export interface MealState extends MealDoc {
   setWoesing: (v: number) => void
   setDinnerRoleOverride: (name: string, val: boolean) => void
   resetDinnerOverrides: () => void
+  renameTab: (id: string, name: string) => void
 }
 
 export const useMealStore = create<MealState>()(
@@ -30,22 +40,29 @@ export const useMealStore = create<MealState>()(
       dinnerPerDay: 12000,
       woesing: 1000000,
       dinnerRoleOverrides: {},
-      hydrate: (doc) => set({ hydrated: true, ...doc }),
+      tabNames: {},
+      hydrate: (doc) => set({ hydrated: true, ...doc, tabNames: doc.tabNames ?? {} }),
       setLunch: (v) => set({ lunchPerDay: v }),
       setDinner: (v) => set({ dinnerPerDay: v }),
       setWoesing: (v) => set({ woesing: v }),
       setDinnerRoleOverride: (name, val) =>
         set((s) => ({ dinnerRoleOverrides: { ...s.dinnerRoleOverrides, [name]: val } })),
       resetDinnerOverrides: () => set({ dinnerRoleOverrides: {} }),
+      renameTab: (id, name) =>
+        set((s) => ({ tabNames: { ...s.tabNames, [id]: name } })),
     }),
 )
 
+export const mealTabName = (tabNames: Record<string, string>, id: string): string =>
+  tabNames[id]?.trim() || DEFAULT_MEAL_TAB_NAMES[id] || id
+
 const pushMeal = debounce((state: MealState) => {
-  convexClient.mutation(api.meal.set, {
+  persistMutation(api.meal.set, {
     lunchPerDay: state.lunchPerDay,
     dinnerPerDay: state.dinnerPerDay,
     woesing: state.woesing,
     dinnerRoleOverrides: state.dinnerRoleOverrides,
+    tabNames: state.tabNames,
   })
 }, 400)
 
@@ -71,10 +88,10 @@ export const mealTotal = (
   operatingMonths: number,
   extras: ExtraSlot[],
 ): number => {
-  const lunchDays = roles.reduce((a, r) => a + r.people.reduce((b, p) => b + ppdP(p), 0), 0)
+  const lunchDays = roles.reduce((a, r) => a + roleScheduleDays(r), 0)
   const dinnerDays = roles
     .filter((r) => isDinnerRole(r, s.dinnerRoleOverrides))
-    .reduce((a, r) => a + r.people.reduce((b, p) => b + ppdP(p), 0), 0)
+    .reduce((a, r) => a + roleScheduleDays(r), 0)
   return (
     s.lunchPerDay * lunchDays +
     s.dinnerPerDay * dinnerDays +

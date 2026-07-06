@@ -120,6 +120,33 @@ export function toggleWorkDay(p: Person, year: number, month: number, day: numbe
   return { e: [year, month, day], ov: newOv }
 }
 
+/** 근무기간(s~e)과 겹치는 날짜만 골라 해당 (year, month) 전체를 비근무로 덮어쓴다. */
+export function clearMonth(p: Person, year: number, month: number): Partial<Person> {
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const ov: Record<string, boolean> = { ...(p.ov ?? {}) }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d)
+    if (date >= D(p.s) && date <= D(p.e)) {
+      ov[dayKeyOf(year, month, d)] = false
+    }
+  }
+  return { ov }
+}
+
+/** 근무기간(s~e)과 겹치는 날짜만 골라 해당 (year, month) 전체를 선택된 주간 패턴(5·6·7일)에 맞춰 채운다. */
+export function fillMonth(p: Person, year: number, month: number): Partial<Person> {
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const ov: Record<string, boolean> = { ...(p.ov ?? {}) }
+  const pattern = patOf(p, year, month)
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d)
+    if (date >= D(p.s) && date <= D(p.e)) {
+      ov[dayKeyOf(year, month, d)] = dayWorks(date.getDay(), pattern)
+    }
+  }
+  return { ov }
+}
+
 export const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
 /** 프로젝트 기간(periodStart~periodEnd)에 해당하는 (연, 월) 목록. 해를 넘어가도 전부 포함한다. */

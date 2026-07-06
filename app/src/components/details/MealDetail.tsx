@@ -3,13 +3,13 @@ import DetailHeader from './DetailHeader'
 import Modal from '../ui/Modal'
 import { GearIcon } from '../icons'
 import { won } from '../../lib/format'
-import { useMealStore, isDinnerRole, mealTotal, postsalesRoles, postsalesMealAmount } from '../../store/mealStore'
-import { useLaborStore, DEFAULT_SECTION_NAMES, roleUnitPriceValue, roleTotalDays } from '../../store/laborStore'
+import { useMealStore, isDinnerRole, mealTotal, postsalesRoles, postsalesMealAmount, mealTabName } from '../../store/mealStore'
+import { useLaborStore, DEFAULT_SECTION_NAMES, roleUnitPriceValue, roleTotalDays, roleMonthDays } from '../../store/laborStore'
 import { useProjectStore } from '../../store/projectStore'
-import { monthWorkP, projectMonths as computeProjectMonths, type MonthCell } from '../../lib/schedule'
+import { projectMonths as computeProjectMonths, type MonthCell } from '../../lib/schedule'
 import type { Role, Section } from '../../store/laborStore'
 
-const SECTION_ORDER: Section[] = ['planning', 'sales', 'other_short', 'other_long']
+const SECTION_ORDER: Section[] = ['planning', 'sales', 'other']
 
 function NumInput({
   value,
@@ -61,7 +61,7 @@ function MealMatrix({
   sectionNames: Record<Section, string>
 }) {
   const amounts = projectMonths.map(({ year, month }) =>
-    roles.map((r) => r.people.reduce((a, p) => a + monthWorkP(p, year, month), 0) * ratePerDay)
+    roles.map((r) => roleMonthDays(r, year, month) * ratePerDay)
   )
 
   const activeMonthIdxs = projectMonths.map((_, i) => i).filter((mi) => amounts[mi].some((v) => v > 0))
@@ -191,7 +191,7 @@ type Tab = 'lunch' | 'dinner' | 'woesing' | 'postsales'
 
 export default function MealDetail() {
   const meal = useMealStore((s) => s)
-  const { setLunch, setDinner, setWoesing, setDinnerRoleOverride } = useMealStore()
+  const { setLunch, setDinner, setWoesing, setDinnerRoleOverride, renameTab } = useMealStore()
   const roles = useLaborStore((s) => s.roles)
   const sectionNames = useLaborStore((s) => s.sectionNames)
   const periodStart = useProjectStore((s) => s.periodStart)
@@ -200,19 +200,21 @@ export default function MealDetail() {
 
   const [activeTab, setActiveTab] = useState<Tab>('lunch')
   const [editModal, setEditModal] = useState<Tab | null>(null)
+  const [editingTab, setEditingTab] = useState<Tab | null>(null)
+  const [editTabVal, setEditTabVal] = useState('')
 
   const projectMonths = computeProjectMonths(periodStart, periodEnd)
   const operatingMonthCount = projectMonths.length
 
   const lunchTotal = roles.reduce(
     (a, r) =>
-      a + projectMonths.reduce((b, { year, month }) => b + r.people.reduce((c, p) => c + monthWorkP(p, year, month), 0) * meal.lunchPerDay, 0),
+      a + projectMonths.reduce((b, { year, month }) => b + roleMonthDays(r, year, month) * meal.lunchPerDay, 0),
     0,
   )
   const dinnerRoles = roles.filter((r) => isDinnerRole(r, meal.dinnerRoleOverrides))
   const dinnerTotal = dinnerRoles.reduce(
     (a, r) =>
-      a + projectMonths.reduce((b, { year, month }) => b + r.people.reduce((c, p) => c + monthWorkP(p, year, month), 0) * meal.dinnerPerDay, 0),
+      a + projectMonths.reduce((b, { year, month }) => b + roleMonthDays(r, year, month) * meal.dinnerPerDay, 0),
     0,
   )
   const woesingTotal = meal.woesing * operatingMonthCount
@@ -221,13 +223,18 @@ export default function MealDetail() {
   const total = mealTotal(meal, roles, operatingMonthCount, extras)
 
   const tabs: { id: Tab; label: string; total: number; sub: string }[] = [
-    { id: 'lunch',   label: '중식비', total: lunchTotal,   sub: `1일 ${won(meal.lunchPerDay)}` },
-    { id: 'dinner',  label: '석식비', total: dinnerTotal,  sub: `1일 ${won(meal.dinnerPerDay)} · ${dinnerRoles.length}개 직무` },
-    { id: 'woesing', label: '회식',   total: woesingTotal, sub: `${operatingMonthCount}개월` },
+    { id: 'lunch',   label: mealTabName(meal.tabNames, 'lunch'),   total: lunchTotal,   sub: `1일 ${won(meal.lunchPerDay)}` },
+    { id: 'dinner',  label: mealTabName(meal.tabNames, 'dinner'),  total: dinnerTotal,  sub: `1일 ${won(meal.dinnerPerDay)} · ${dinnerRoles.length}개 직무` },
+    { id: 'woesing', label: mealTabName(meal.tabNames, 'woesing'), total: woesingTotal, sub: `${operatingMonthCount}개월` },
     ...(postsalesRolesList.length > 0
-      ? [{ id: 'postsales' as Tab, label: '사후 인건비', total: postsalesTotal, sub: `${postsalesRolesList.length}개 직무 · 단가표 반영` }]
+      ? [{ id: 'postsales' as Tab, label: mealTabName(meal.tabNames, 'postsales'), total: postsalesTotal, sub: `${postsalesRolesList.length}개 직무 · 단가표 반영` }]
       : []),
   ]
+
+  const commitTabName = (id: Tab) => {
+    renameTab(id, editTabVal.trim())
+    setEditingTab(null)
+  }
 
   return (
     <div className="pb-8" data-c="meal">
@@ -252,12 +259,34 @@ export default function MealDetail() {
                 onClick={() => setActiveTab(tab.id)}
               >
                 <div className="flex items-start justify-between gap-1">
-                  <div
-                    className="text-[15px] font-bold uppercase tracking-widest"
-                    style={{ color: active ? 'var(--accent)' : 'var(--muted)' }}
-                  >
-                    {tab.label}
-                  </div>
+                  {editingTab === tab.id ? (
+                    <input
+                      autoFocus
+                      className="text-[15px] font-bold uppercase tracking-widest bg-transparent outline-none border-b-2"
+                      style={{ color: 'var(--fg)', borderColor: 'var(--accent)', minWidth: 60, width: '100%' }}
+                      value={editTabVal}
+                      onChange={(e) => setEditTabVal(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onBlur={() => commitTabName(tab.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitTabName(tab.id)
+                        if (e.key === 'Escape') setEditingTab(null)
+                      }}
+                    />
+                  ) : (
+                    <div
+                      className="text-[15px] font-bold uppercase tracking-widest"
+                      style={{ color: active ? 'var(--accent)' : 'var(--muted)' }}
+                      title="더블클릭하여 이름 수정"
+                      onDoubleClick={(e) => {
+                        e.stopPropagation()
+                        setEditingTab(tab.id)
+                        setEditTabVal(tab.label)
+                      }}
+                    >
+                      {tab.label}
+                    </div>
+                  )}
                   {tab.id !== 'woesing' && tab.id !== 'postsales' && (
                     <button
                       className="back-btn !w-6 !h-6 flex-none"
@@ -293,7 +322,7 @@ export default function MealDetail() {
           {activeTab === 'postsales' && (
             <div className="flex flex-col gap-3">
               <div className="text-[15px]" style={{ color: 'var(--muted)' }}>
-                사후(postsales) 사용기간으로 설정된 직무는 인건비에서 0원 처리되고, 단가표 금액이 여기 식대로 전환되어 반영됩니다.
+                사후(postsales) 사용기간으로 설정된 직무는 인건비에서 0원 처리되고, 단가표 금액이 여기 '{mealTabName(meal.tabNames, 'postsales')}'(으)로 전환되어 반영됩니다.
               </div>
               <table className="data-table">
                 <thead>

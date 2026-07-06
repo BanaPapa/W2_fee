@@ -53,8 +53,8 @@ export default function Modal({ open, onClose, title, sub, children, width, widt
               aria-modal="true"
               aria-label={title}
             >
-              <div className="modal-head" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 10, paddingTop: 14 }}>
-                <div style={{ flexShrink: 0 }}>
+              <div className="modal-head" style={{ alignItems: 'center', flexWrap: 'nowrap', gap: 10, paddingTop: 14 }}>
+                <div style={{ minWidth: 0 }}>
                   <h2 style={{ margin: 0 }}>{title}</h2>
                   {sub && <p className="sub">{sub}</p>}
                 </div>

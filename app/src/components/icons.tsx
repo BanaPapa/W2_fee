@@ -65,6 +65,13 @@ export const TrendIcon = (p: IP) => (
     <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
   </svg>
 )
+export const TargetIcon = (p: IP) => (
+  <svg {...base(p)} strokeWidth={1.8}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="5" />
+    <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+  </svg>
+)
 export const GearIcon = (p: IP) => (
   <svg {...base(p)} strokeWidth={1.7}>
     <circle cx="12" cy="12" r="3" />

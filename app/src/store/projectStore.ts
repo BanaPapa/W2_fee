@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { api } from '../../convex/_generated/api'
-import { convexClient } from '../lib/convexClient'
+import { persistMutation } from '../lib/convexClient'
 import { debounce } from '../lib/debounce'
 
 export interface ExtraSlot { name: string; days: number }
@@ -378,7 +378,7 @@ export const useProjectStore = create<ProjectState>()(
 )
 
 const pushProject = debounce((state: ProjectState) => {
-  convexClient.mutation(api.project.set, {
+  persistMutation(api.project.set, {
     title: state.project.title,
     pm: state.project.pm,
     periodStart: state.periodStart,

@@ -13,6 +13,8 @@ interface Props {
   amount: number
   reduceMotion: boolean
   onSelect: (id: CategoryMeta['id']) => void
+  /** 우클릭으로 삭제 가능한 카드(사용자 추가 카드)에만 전달된다 */
+  onDelete?: (id: CategoryMeta['id']) => void
 }
 
 const STAGGER = 0.06
@@ -28,6 +30,7 @@ export default function CategoryCard({
   amount,
   reduceMotion,
   onSelect,
+  onDelete,
 }: Props) {
   const { Icon } = meta
   const split = mode === 'split'
@@ -42,6 +45,7 @@ export default function CategoryCard({
       data-c={meta.id}
       className={`ccard${active ? ' on' : ''}`}
       onClick={() => onSelect(meta.id)}
+      onContextMenu={onDelete ? (e) => { e.preventDefault(); onDelete(meta.id) } : undefined}
       role="button"
       tabIndex={0}
       aria-label={`${meta.name} 상세 열기`}

@@ -14,6 +14,7 @@ export const set = mutation({
     dinnerPerDay: v.number(),
     woesing: v.number(),
     dinnerRoleOverrides: v.record(v.string(), v.boolean()),
+    tabNames: v.optional(v.record(v.string(), v.string())),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db.query('meal').first()

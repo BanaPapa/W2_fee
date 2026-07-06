@@ -1,6 +1,6 @@
 import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
-import { lineItem } from './validators'
+import { lineItem, ledgerGroup } from './validators'
 
 const category = v.union(v.literal('ad'), v.literal('operating'), v.literal('misc'))
 
@@ -19,6 +19,7 @@ export const set = mutation({
     category,
     items: v.array(lineItem),
     chips: v.array(v.string()),
+    groups: v.optional(v.array(ledgerGroup)),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db

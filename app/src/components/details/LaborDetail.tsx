@@ -1,15 +1,16 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import Modal from '../ui/Modal'
 import DetailHeader from './DetailHeader'
-import { PlusIcon, MinusIcon, GearIcon } from '../icons'
-import { won, wonCompact } from '../../lib/format'
-import { D, isWorkP, patOf, DOW, projectMonths as computeProjectMonths, toggleWorkDay, monthCellKey, monthKeyOf, type Person, type MonthCell } from '../../lib/schedule'
+import { PlusIcon, MinusIcon } from '../icons'
+import { won } from '../../lib/format'
+import { D, isWorkP, patOf, DOW, projectMonths as computeProjectMonths, toggleWorkDay, clearMonth, fillMonth, monthCellKey, monthKeyOf, type Person, type MonthCell } from '../../lib/schedule'
 import {
   useLaborStore,
   laborTotal,
   roleTotal,
-  roleTotalDays,
+  roleMonthHeadcount,
   USAGE_PERIOD_LABELS,
+  GRID_COLS,
   type Role,
   type Section,
   type UsagePeriod,
@@ -18,6 +19,7 @@ import {
 import { useProjectStore, toDate, toIso, MS_DAY } from '../../store/projectStore'
 
 const USAGE_PERIOD_OPTIONS: (UsagePeriod | null)[] = [null, 'all', 'presales', 'open', 'postsales']
+const usagePeriodLabel = (u: UsagePeriod | null): string => (u ? USAGE_PERIOD_LABELS[u] : '개별')
 
 const PATTERNS: { v: number; label: string }[] = [
   { v: 7, label: '주 7일' },
@@ -25,12 +27,21 @@ const PATTERNS: { v: number; label: string }[] = [
   { v: 5, label: '주 5일' },
 ]
 
-const SECTIONS = [
-  { key: 'planning' as const, maxCards: 4 },
-  { key: 'sales' as const, maxCards: 4 },
-  { key: 'other_short' as const, maxCards: 8 },
-  { key: 'other_long' as const, maxCards: 8 },
-]
+const SECTION_KEYS: Section[] = ['planning', 'sales', 'other']
+
+/** 직무 카드 덱 치수 — 세로가 긴 카드를 한 행에 최대 GRID_COLS(스토어 공유값)장, 3행 이상은 자동으로 행이 늘어남 */
+const CARD_W = 220
+const MIN_ROWS = 3
+
+/** 배지 클릭 시 기획 → 영업 → 기타 순으로 구분을 순환 변경 */
+const nextSection = (s: Section): Section =>
+  SECTION_KEYS[(SECTION_KEYS.indexOf(s) + 1) % SECTION_KEYS.length]
+
+const SECTION_BADGE: Record<Section, { bg: string; fg: string }> = {
+  planning: { bg: 'rgba(59,130,246,0.12)', fg: '#2563eb' },
+  sales: { bg: 'rgba(34,197,94,0.14)', fg: '#15803d' },
+  other: { bg: 'rgba(107,114,128,0.16)', fg: '#6b7280' },
+}
 
 type KeyDateType = 'open' | 'contract' | 'alt'
 
@@ -76,7 +87,8 @@ export default function LaborDetail() {
   const sectionNames = useLaborStore((s) => s.sectionNames)
   const {
     addRole, changeRoleSection, removeRole, reorderRole, renameRole, setDaily, addPerson, removePerson,
-    updatePerson, renameSection, setRoleUsagePeriod, setRoleCostMode,
+    updatePerson, setRoleUsagePeriod, setRoleCostMode, setMonthHeadcount, moveRoleToSlot, swapRoleSlots,
+    insertRoleBefore,
   } = useLaborStore()
   const extras = useProjectStore((s) => s.extras)
   const periodStart = useProjectStore((s) => s.periodStart)
@@ -86,13 +98,11 @@ export default function LaborDetail() {
 
   const [detailRole, setDetailRole] = useState<number | null>(null)
   const [rateOpen, setRateOpen] = useState(false)
-
-  const [editingSection, setEditingSection] = useState<Section | null>(null)
-  const [editSectionVal, setEditSectionVal] = useState('')
+  const [addOpen, setAddOpen] = useState(false)
+  const [addTargetSlot, setAddTargetSlot] = useState<number | null>(null)
 
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
-  const [dragOverSection, setDragOverSection] = useState<Section | null>(null)
   const cardDragOccurred = { current: false }
 
   const [rateDragIdx, setRateDragIdx] = useState<number | null>(null)
@@ -100,14 +110,13 @@ export default function LaborDetail() {
   const rateDragAllowed = { current: false }
 
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
-  const [settingsRole, setSettingsRole] = useState<number | null>(null)
   const [integratedOpen, setIntegratedOpen] = useState(false)
   const [detailMonth, setDetailMonth] = useState<MonthCell | null>(null)
 
   const total = laborTotal(roles, extras)
 
   return (
-    <div className="pb-8" data-c="labor">
+    <div className="flex flex-col min-h-full pb-8" data-c="labor">
       <DetailHeader
         title="인건비"
         subtitle={`직무 ${roles.length}개`}
@@ -118,263 +127,248 @@ export default function LaborDetail() {
               통합 달력
             </button>
             <button className="pill" onClick={() => setRateOpen(true)}>
-              단가표
+              인건비 설정
             </button>
           </>
         }
       />
 
-      <div className="px-6 pt-5">
-        {SECTIONS.map((sec, si) => {
-          const secRoles = roles.flatMap((r, i) =>
-            (r.section ?? 'planning') === sec.key ? [{ r, i }] : []
-          )
-          const { maxCards } = sec
-          const secTotal = secRoles.reduce((sum, { r }) => sum + roleTotal(r, extras), 0)
-          const isDropTarget = dragOverSection === sec.key && dragIdx !== null && (roles[dragIdx]?.section ?? 'planning') !== sec.key
+      <div className="px-6 py-8 flex-1 flex items-center justify-center">
+        {/*
+          카드 덱: 5열 고정 보드. 각 칸은 고정 슬롯이라 이미 카드가 채워진 칸으로는
+          드롭할 수 없고, 빈 칸(점선 셀)에만 옮겨놓을 수 있다. 화면 가운데(가로·세로)에 정렬.
+        */}
+        {(() => {
+          // slot(고정 위치) → 배열 인덱스 매핑. slot 미설정 직무는 배열 인덱스를 그대로 slot으로 취급(구버전 호환).
+          const slotToIdx = new Map<number, number>()
+          roles.forEach((r, i) => slotToIdx.set(r.slot ?? i, i))
+          const usedSlots = [...slotToIdx.keys()]
+          const maxSlot = usedSlots.length ? Math.max(...usedSlots) : -1
+          const maxRowWithData = maxSlot >= 0 ? Math.floor(maxSlot / GRID_COLS) : -1
+          const totalRows = Math.max(MIN_ROWS, maxRowWithData + 1)
+          const totalCells = totalRows * GRID_COLS
+          // 행별로 채워진 카드 수 — 이걸로 "이 행에 여유가 있는지", "이 행의 마지막 칸이
+          // 직무 추가 버튼인지"를 판단한다.
+          const rowCounts = new Map<number, number>()
+          roles.forEach((r, i) => {
+            const row = Math.floor((r.slot ?? i) / GRID_COLS)
+            rowCounts.set(row, (rowCounts.get(row) ?? 0) + 1)
+          })
+          // 드래그 중인 카드와 같은 행일 때만 다른 카드 위에 드롭해 순서를 맞바꿀 수 있다.
+          const dragRow = dragIdx !== null ? Math.floor((roles[dragIdx]?.slot ?? dragIdx) / GRID_COLS) : null
+
           return (
-            <div key={sec.key}>
-              {si > 0 && (
-                <div style={{ borderTop: '1px solid var(--border)', margin: '2px 0' }} />
-              )}
-              <div
-                className="py-4"
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  if (dragIdx !== null && (roles[dragIdx]?.section ?? 'planning') !== sec.key) {
-                    setDragOverSection(sec.key)
-                  }
-                }}
-                onDragLeave={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSection(null)
-                }}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  if (dragIdx !== null && (roles[dragIdx]?.section ?? 'planning') !== sec.key) {
-                    changeRoleSection(dragIdx, sec.key)
-                  }
-                  setDragIdx(null); setDragOver(null); setDragOverSection(null)
-                }}
-                style={{
-                  borderRadius: 12,
-                  background: isDropTarget ? 'color-mix(in oklch, var(--accent) 5%, transparent)' : undefined,
-                  outline: isDropTarget ? '2px dashed var(--accent)' : undefined,
-                  outlineOffset: isDropTarget ? -2 : undefined,
-                  transition: 'background 0.15s, outline 0.15s',
-                }}
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  {editingSection === sec.key ? (
-                    <input
-                      autoFocus
-                      className="text-[14px] font-bold tracking-widest uppercase bg-transparent outline-none border-b-2"
-                      style={{ color: 'var(--muted)', borderColor: 'var(--accent)', minWidth: 60 }}
-                      value={editSectionVal}
-                      onChange={(e) => setEditSectionVal(e.target.value)}
-                      onBlur={() => {
-                        renameSection(sec.key, editSectionVal.trim() || sectionNames[sec.key])
-                        setEditingSection(null)
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          renameSection(sec.key, editSectionVal.trim() || sectionNames[sec.key])
-                          setEditingSection(null)
-                        }
-                        if (e.key === 'Escape') setEditingSection(null)
-                      }}
-                    />
-                  ) : (
+            <div
+              className="grid gap-5"
+              style={{ gridTemplateColumns: `repeat(${GRID_COLS}, ${CARD_W}px)`, gridAutoRows: `${CARD_W * 4 / 3}px` }}
+            >
+              {Array.from({ length: totalCells }, (_, slot) => {
+                const roleIdx = slotToIdx.get(slot)
+                if (roleIdx !== undefined) {
+                  const r = roles[roleIdx]
+                  const sec = r.section ?? 'planning'
+                  const badge = SECTION_BADGE[sec]
+                  const cellRow = Math.floor(slot / GRID_COLS)
+                  const sameRowDrag = dragIdx !== null && dragIdx !== roleIdx && dragRow === cellRow
+                  // 다른 행에서 끌어온 카드를 이 카드 위에 놓으면, 이 행에 자리가 있는 한
+                  // 이 카드 자리에 끼워 넣고 이 카드(와 뒤 카드들)는 오른쪽으로 밀린다.
+                  const crossRowInsert =
+                    dragIdx !== null && dragRow !== null && dragRow !== cellRow && (rowCounts.get(cellRow) ?? 0) < GRID_COLS
+                  const canDropOnCard = sameRowDrag || crossRowInsert
+                  const isSwapTarget = canDropOnCard && dragOver === slot
+                  return (
                     <div
-                      className="text-[14px] font-bold tracking-widest uppercase select-none cursor-default"
-                      style={{ color: 'var(--muted)' }}
-                      title="더블클릭하여 이름 수정"
-                      onDoubleClick={() => {
-                        setEditingSection(sec.key)
-                        setEditSectionVal(sectionNames[sec.key] ?? '')
-                      }}
-                    >
-                      {sectionNames[sec.key]}
-                    </div>
-                  )}
-                  {secTotal > 0 && (
-                    <div className="text-[16px] font-semibold tabular" style={{ color: 'var(--fg)' }}>
-                      {won(secTotal)}
-                    </div>
-                  )}
-                </div>
-                <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-                  {secRoles.map(({ r, i }) => (
-                    <div
-                      key={i}
+                      key={roleIdx}
                       draggable
                       onDragStart={(e) => {
                         if ((e.target as HTMLElement).closest('input,button')) { e.preventDefault(); return }
                         cardDragOccurred.current = true
-                        setDragIdx(i)
+                        setDragIdx(roleIdx)
                         e.dataTransfer.effectAllowed = 'move'
                       }}
                       onDragEnd={() => {
                         setTimeout(() => { cardDragOccurred.current = false }, 80)
-                        setDragIdx(null); setDragOver(null); setDragOverSection(null)
+                        setDragIdx(null); setDragOver(null)
+                      }}
+                      onDragOver={(e) => {
+                        if (!canDropOnCard) return
+                        e.preventDefault()
+                        e.dataTransfer.dropEffect = 'move'
+                        setDragOver(slot)
+                      }}
+                      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null) }}
+                      onDrop={(e) => {
+                        if (!canDropOnCard) return
+                        e.preventDefault()
+                        if (dragIdx !== null) {
+                          if (sameRowDrag) swapRoleSlots(dragIdx, roleIdx)
+                          else insertRoleBefore(dragIdx, roleIdx)
+                        }
+                        setDragIdx(null); setDragOver(null)
                       }}
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest('input,button')) return
                         if (cardDragOccurred.current) return
                         setDetailMonth(null)
-                        setDetailRole(i)
-                      }}
-                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragIdx !== i) setDragOver(i) }}
-                      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null) }}
-                      onDrop={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        if (dragIdx !== null) {
-                          const fromSection = roles[dragIdx]?.section ?? 'planning'
-                          if (fromSection !== sec.key) {
-                            changeRoleSection(dragIdx, sec.key)
-                          } else if (dragIdx !== i) {
-                            reorderRole(dragIdx, i)
-                          }
-                        }
-                        setDragIdx(null); setDragOver(null); setDragOverSection(null)
+                        setDetailRole(roleIdx)
                       }}
                       onContextMenu={(e) => {
                         e.preventDefault()
-                        setDeleteConfirm(i)
+                        setDeleteConfirm(roleIdx)
                       }}
-                      className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow)] flex flex-col gap-3 transition-opacity select-none"
+                      className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)] flex flex-col justify-between gap-3 transition-opacity select-none"
                       style={{
-                        cursor: dragIdx === i ? 'grabbing' : 'pointer',
-                        opacity: dragIdx === i ? 0.35 : 1,
-                        outline: dragOver === i ? '2px solid var(--accent)' : undefined,
-                        outlineOffset: dragOver === i ? 2 : undefined,
+                        cursor: dragIdx === roleIdx ? 'grabbing' : 'pointer',
+                        outline: isSwapTarget ? '2px solid var(--accent)' : undefined,
+                        outlineOffset: isSwapTarget ? 2 : undefined,
+                        opacity: dragIdx === roleIdx ? 0.35 : 1,
                       }}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <input
-                            className="w-full bg-transparent font-semibold text-[18px] text-[var(--ink)] outline-none border-b border-transparent focus:border-[var(--border)] cursor-text"
-                            value={r.name}
-                            spellCheck={false}
-                            onChange={(e) => renameRole(i, e.target.value)}
-                            onMouseDown={(e) => e.stopPropagation()}
-                          />
-                          <div className="text-[15px] text-[var(--muted)] mt-1">
-                            {roleTotalDays(r, extras)}일 · <b className="text-[var(--fg)]">{r.people.length}명</b>
-                          </div>
-                          {(r.usagePeriod || r.costMode === 'aggregate') && (
-                            <div className="text-[12px] font-semibold mt-0.5" style={{ color: 'var(--accent)' }}>
-                              {r.usagePeriod ? USAGE_PERIOD_LABELS[r.usagePeriod] : '개별'} · {r.costMode === 'aggregate' ? '집합' : '개별'}
-                            </div>
-                          )}
-                        </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <button
+                          title="클릭하여 구분 변경 (기획 → 영업 → 기타)"
+                          onClick={(e) => { e.stopPropagation(); changeRoleSection(roleIdx, nextSection(sec)) }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          style={{
+                            fontSize: 13.5, fontWeight: 700, padding: '3px 12px', borderRadius: 999,
+                            background: badge.bg, color: badge.fg, letterSpacing: '0.04em',
+                            border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                          }}
+                        >
+                          {sectionNames[sec]}
+                        </button>
                         <div className="flex items-center gap-1 flex-none">
                           <button
-                            className="back-btn !w-8 !h-8"
-                            aria-label="직무 설정"
-                            onClick={(e) => { e.stopPropagation(); setSettingsRole(i) }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
-                            <GearIcon style={{ width: 15, height: 15 }} />
-                          </button>
-                          <button
-                            className="back-btn !w-8 !h-8"
+                            className="back-btn !w-6 !h-6"
                             aria-label="인원 감소"
                             disabled={r.people.length === 0}
-                            onClick={() => removePerson(i)}
+                            onClick={(e) => { e.stopPropagation(); removePerson(roleIdx) }}
+                            onMouseDown={(e) => e.stopPropagation()}
                           >
                             <MinusIcon />
                           </button>
-                          <button className="back-btn !w-8 !h-8" aria-label="인원 추가" onClick={() => addPerson(i)}>
+                          <span className="text-[15px] font-bold text-[var(--fg)] tabular" style={{ minWidth: 26, textAlign: 'center' }}>
+                            {r.people.length}명
+                          </span>
+                          <button
+                            className="back-btn !w-6 !h-6"
+                            aria-label="인원 추가"
+                            onClick={(e) => { e.stopPropagation(); addPerson(roleIdx) }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
                             <PlusIcon />
                           </button>
                         </div>
                       </div>
-                      <div className="font-display text-[23px] font-semibold text-[var(--ink)] tabular">
+                      <input
+                        className="w-full bg-transparent font-semibold text-[21px] text-[var(--ink)] outline-none border-b border-transparent focus:border-[var(--border)] cursor-text"
+                        value={r.name}
+                        spellCheck={false}
+                        onChange={(e) => renameRole(roleIdx, e.target.value)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      />
+                      <div className="font-display text-[25px] font-semibold text-[var(--ink)] tabular">
                         {won(roleTotal(r, extras))}
                       </div>
-                      <div className="text-[14.5px] text-[var(--muted)] font-mono">
-                        일 {wonCompact(r.daily)} × {roleTotalDays(r, extras)}일
-                      </div>
                     </div>
-                  ))}
-                  {secRoles.length < maxCards && (
+                  )
+                }
+
+                // 빈 슬롯 — 카드가 채워진 칸으로는 드롭할 수 없고, 이 빈 칸으로만 옮길 수 있다.
+                // 옮기면 그 슬롯 값만 바뀌고 다른 직무는 그대로라, 원래 있던 칸은 그냥 빈 칸으로 남는다.
+                const cellRow = Math.floor(slot / GRID_COLS)
+                const cellCol = slot % GRID_COLS
+                const rowFilled = rowCounts.get(cellRow) ?? 0
+                // 왼쪽 정렬 압축 규칙상, 행이 꽉 차지 않았다면 그 행의 마지막 칸은 항상 비어
+                // 있다 — 그 자리를 "직무 추가" 버튼으로 고정해서 몇 장이 있든 위치가 안정적이다.
+                const isAddCell = cellCol === GRID_COLS - 1 && rowFilled < GRID_COLS
+                const isDropTarget = dragOver === slot
+
+                const dragHandlers = {
+                  onDragOver: (e: React.DragEvent) => {
+                    if (dragIdx === null) return
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                    setDragOver(slot)
+                  },
+                  onDragLeave: (e: React.DragEvent) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null) },
+                  onDrop: (e: React.DragEvent) => {
+                    e.preventDefault()
+                    if (dragIdx !== null) moveRoleToSlot(dragIdx, slot)
+                    setDragIdx(null); setDragOver(null)
+                  },
+                }
+
+                if (isAddCell) {
+                  return (
                     <button
-                      className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-2)] p-4 min-h-[120px] flex flex-col items-center justify-center gap-2 text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
-                      onClick={() => addRole(sec.key)}
+                      key={`add-${slot}`}
+                      {...dragHandlers}
+                      className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-2)] p-5 flex flex-col items-center justify-center gap-2 text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+                      style={{
+                        borderColor: isDropTarget ? 'var(--accent)' : undefined,
+                        background: isDropTarget ? 'color-mix(in oklch, var(--accent) 6%, transparent)' : undefined,
+                      }}
+                      onClick={() => { setAddTargetSlot(slot); setAddOpen(true) }}
                     >
-                      <PlusIcon style={{ width: 20, height: 20 }} />
-                      <span className="text-[17px] font-semibold">직무 추가</span>
+                      <PlusIcon style={{ width: 24, height: 24 }} />
+                      <span className="text-[18px] font-semibold">직무 추가</span>
                     </button>
-                  )}
-                </div>
-              </div>
+                  )
+                }
+
+                return (
+                  <div
+                    key={`empty-${slot}`}
+                    {...dragHandlers}
+                    className="rounded-2xl border border-dashed transition-colors"
+                    style={{
+                      borderColor: isDropTarget ? 'var(--accent)' : 'var(--border)',
+                      background: isDropTarget ? 'color-mix(in oklch, var(--accent) 6%, transparent)' : 'transparent',
+                    }}
+                  />
+                )
+              })}
             </div>
           )
-        })}
+        })()}
       </div>
 
-      {/* ---- 직무 설정 모달 (인력 사용기간 · 인건비 산정방식) ---- */}
+      {/* ---- 직무 추가 모달 (구분 선택) ---- */}
       <Modal
-        open={settingsRole !== null}
-        onClose={() => setSettingsRole(null)}
-        title={settingsRole !== null ? `${roles[settingsRole]?.name ?? ''} 설정` : '직무 설정'}
-        width={420}
+        open={addOpen}
+        onClose={() => { setAddOpen(false); setAddTargetSlot(null) }}
+        title="직무 추가"
+        sub="새 직무의 구분을 선택하세요"
+        width={400}
       >
-        {settingsRole !== null && roles[settingsRole] && (
-          <div className="flex flex-col gap-5 pt-1">
-            <div>
-              <div className="text-[15px] font-bold mb-2" style={{ color: 'var(--muted)' }}>인력 사용기간</div>
-              <div className="flex flex-wrap gap-2">
-                {USAGE_PERIOD_OPTIONS.map((opt) => {
-                  const active = (roles[settingsRole]!.usagePeriod ?? null) === opt
-                  return (
-                    <button
-                      key={opt ?? 'none'}
-                      className="pill"
-                      style={active ? { background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' } : undefined}
-                      onClick={() => setRoleUsagePeriod(settingsRole, opt)}
-                    >
-                      {opt ? USAGE_PERIOD_LABELS[opt] : '개별(자유 편집)'}
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="text-[13px] mt-2" style={{ color: 'var(--muted)' }}>
-                기간을 선택하면 이 직무의 모든 인원 근무기간이 해당 기간으로 일괄 설정됩니다.
-              </div>
-            </div>
-            <div>
-              <div className="text-[15px] font-bold mb-2" style={{ color: 'var(--muted)' }}>인건비 산정방식</div>
-              <div className="flex gap-2">
-                {(['individual', 'aggregate'] as CostMode[]).map((mode) => {
-                  const active = (roles[settingsRole]!.costMode ?? 'individual') === mode
-                  return (
-                    <button
-                      key={mode}
-                      className="pill"
-                      style={active ? { background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' } : undefined}
-                      onClick={() => setRoleCostMode(settingsRole, mode)}
-                    >
-                      {mode === 'individual' ? '개별' : '집합'}
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="text-[13px] mt-2" style={{ color: 'var(--muted)' }}>
-                집합을 선택하면 인원별 달력 대신, 직무군 전체를 한 줄로 보여주고 인원 전체가 같은 일정을 공유합니다.
-              </div>
-            </div>
-            <div className="flex justify-end">
+        <div className="flex flex-col gap-2 pt-2">
+          {SECTION_KEYS.map((sec) => {
+            const badge = SECTION_BADGE[sec]
+            return (
               <button
-                onClick={() => setSettingsRole(null)}
-                style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 20px', fontWeight: 700, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit' }}
+                key={sec}
+                onClick={() => { addRole(sec, addTargetSlot ?? undefined); setAddOpen(false); setAddTargetSlot(null) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '12px 14px', borderRadius: 12,
+                  border: '1px solid var(--border)', background: 'var(--surface-2)',
+                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                }}
               >
-                확인
+                <span style={{
+                  fontSize: 13, fontWeight: 700, padding: '3px 10px', borderRadius: 999,
+                  background: badge.bg, color: badge.fg,
+                }}>
+                  {sectionNames[sec]}
+                </span>
+                <span style={{ fontSize: 15, color: 'var(--muted)' }}>
+                  {sec === 'planning' ? '총괄 · 기획 · 상담 등' : sec === 'sales' ? '분양 영업 인력' : '단기 · 지원 인력 등'}
+                </span>
               </button>
-            </div>
-          </div>
-        )}
+            )
+          })}
+        </div>
       </Modal>
 
       {/* ---- 삭제 확인 모달 ---- */}
@@ -457,6 +451,7 @@ export default function LaborDetail() {
             role={roles[detailRole]}
             projectMonths={projectMonths}
             onUpdatePerson={(pi, patch) => updatePerson(detailRole, pi, patch)}
+            onSetMonthHeadcount={(y, m, c) => setMonthHeadcount(detailRole, y, m, c)}
             scrollToMonth={detailMonth ?? undefined}
           />
         )}
@@ -466,30 +461,34 @@ export default function LaborDetail() {
       <Modal
         open={rateOpen}
         onClose={() => setRateOpen(false)}
-        title="단가표"
-        sub={`직무 ${roles.length}개 · 일 단가 조정`}
-        width={749}
+        title="인건비 설정"
+        sub={`직무 ${roles.length}개 · 단가 · 인원 · 구분 · 사용기간 · 산정방식 설정`}
+        widthCss="70vw"
       >
         <table className="data-table mt-2.5">
           <thead>
             <tr>
               <th style={{ width: 28 }}></th>
               <th>직무</th>
+              <th style={{ textAlign: 'center' }}>구분</th>
               <th style={{ textAlign: 'right' }}>일 단가</th>
+              <th style={{ textAlign: 'center' }}>인원</th>
+              <th style={{ textAlign: 'center' }}>사용기간</th>
+              <th style={{ textAlign: 'center' }}>산정방식</th>
               <th style={{ textAlign: 'right', minWidth: 120 }}>소계</th>
             </tr>
           </thead>
           <tbody>
-            {SECTIONS.map((sec, si) => {
+            {SECTION_KEYS.map((sec, si) => {
               const secRolesInModal = roles.flatMap((r, i) =>
-                (r.section ?? 'planning') === sec.key ? [{ r, i }] : []
+                (r.section ?? 'planning') === sec ? [{ r, i }] : []
               )
               if (secRolesInModal.length === 0) return null
               return (
                 <>
-                  <tr key={`sec-header-${sec.key}`}>
-                    <td colSpan={4} style={{ padding: si === 0 ? '4px 0 6px' : '14px 0 6px', fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', borderTop: si > 0 ? '2px solid var(--border)' : undefined }}>
-                      {sectionNames[sec.key]}
+                  <tr key={`sec-header-${sec}`}>
+                    <td colSpan={8} style={{ padding: si === 0 ? '4px 0 6px' : '14px 0 6px', fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', borderTop: si > 0 ? '2px solid var(--border)' : undefined }}>
+                      {sectionNames[sec]}
                     </td>
                   </tr>
                   {secRolesInModal.map(({ r, i }) => (
@@ -527,6 +526,19 @@ export default function LaborDetail() {
                         onMouseDown={() => { rateDragAllowed.current = true }}
                         onMouseUp={() => { rateDragAllowed.current = false }}
                       >{r.name}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <select
+                          className="field-input"
+                          style={{ width: 80, cursor: 'pointer' }}
+                          value={r.section ?? 'planning'}
+                          onChange={(e) => changeRoleSection(i, e.target.value as Section)}
+                          title="직무의 구분(기획/영업/기타)을 변경합니다"
+                        >
+                          {SECTION_KEYS.map((s) => (
+                            <option key={s} value={s}>{sectionNames[s]}</option>
+                          ))}
+                        </select>
+                      </td>
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -543,6 +555,49 @@ export default function LaborDetail() {
                           </div>
                           <RateInput value={r.daily} onCommit={(v) => setDaily(i, v)} />
                         </div>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <button
+                            className="back-btn !w-7 !h-7"
+                            aria-label="인원 감소"
+                            disabled={r.people.length === 0}
+                            onClick={() => removePerson(i)}
+                          >
+                            <MinusIcon />
+                          </button>
+                          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', minWidth: 34, textAlign: 'center' }}>
+                            {r.people.length}명
+                          </span>
+                          <button className="back-btn !w-7 !h-7" aria-label="인원 추가" onClick={() => addPerson(i)}>
+                            <PlusIcon />
+                          </button>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <select
+                          className="field-input"
+                          style={{ width: 90, cursor: 'pointer' }}
+                          value={r.usagePeriod ?? ''}
+                          onChange={(e) => setRoleUsagePeriod(i, (e.target.value || null) as UsagePeriod | null)}
+                          title="기간을 선택하면 이 직무의 모든 인원 근무기간이 해당 기간으로 일괄 설정됩니다"
+                        >
+                          {USAGE_PERIOD_OPTIONS.map((opt) => (
+                            <option key={opt ?? 'none'} value={opt ?? ''}>{usagePeriodLabel(opt)}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <select
+                          className="field-input"
+                          style={{ width: 80, cursor: 'pointer' }}
+                          value={r.costMode ?? 'individual'}
+                          onChange={(e) => setRoleCostMode(i, e.target.value as CostMode)}
+                          title="집합: 인원 전체가 같은 일정을 공유하고, 달력에서 달마다 투입 인원을 조정할 수 있습니다"
+                        >
+                          <option value="individual">개별</option>
+                          <option value="aggregate">집합</option>
+                        </select>
                       </td>
                       <td className="num" style={{ color: 'var(--muted)', minWidth: 120 }}>
                         <span style={{ fontSize: 15 }}>{Math.round(roleTotal(r, extras)).toLocaleString('ko-KR')}</span>
@@ -586,11 +641,13 @@ function CalendarModal({
   role,
   projectMonths,
   onUpdatePerson,
+  onSetMonthHeadcount,
   scrollToMonth,
 }: {
   role: Role
   projectMonths: MonthCell[]
   onUpdatePerson: (pi: number, patch: Partial<Person>) => void
+  onSetMonthHeadcount: (year: number, month: number, count: number) => void
   scrollToMonth?: MonthCell
 }) {
   const monthRefs = useRef<Record<number, HTMLDivElement | null>>({})
@@ -615,6 +672,18 @@ function CalendarModal({
   const setPatternAll = (v: number) => {
     role.people.forEach((p, pi) => {
       onUpdatePerson(pi, { pat: buildPattern(p.s, p.e, v), ov: {} })
+    })
+  }
+
+  const clearRoleMonth = (year: number, m: number) => {
+    role.people.forEach((p, pi) => {
+      onUpdatePerson(pi, clearMonth(p, year, m))
+    })
+  }
+
+  const fillRoleMonth = (year: number, m: number) => {
+    role.people.forEach((p, pi) => {
+      onUpdatePerson(pi, fillMonth(p, year, m))
     })
   }
 
@@ -696,8 +765,11 @@ function CalendarModal({
           const mKey = monthCellKey({ year, month: m })
           const daysInM = new Date(year, m + 1, 0).getDate()
           const days = Array.from({ length: daysInM }, (_, i) => i + 1)
+          const monthHc = roleMonthHeadcount(role, year, m)
           const dayTotal = (d: number) =>
-            role.people.filter((p) => effectivelyWorks(new Date(year, m, d), p)).length
+            isAggregate
+              ? role.people[0] && effectivelyWorks(new Date(year, m, d), role.people[0]) ? monthHc : 0
+              : role.people.filter((p) => effectivelyWorks(new Date(year, m, d), p)).length
           const personMonthDays = (pi: number) =>
             days.filter((d) => effectivelyWorks(new Date(year, m, d), role.people[pi])).length
           const grandTotal = days.reduce((n, d) => n + dayTotal(d), 0)
@@ -718,9 +790,55 @@ function CalendarModal({
                   {year}년 {m + 1}월
                 </span>
                 <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                {isAggregate && (
+                  <span
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
+                    title="이 달에 투입되는 인원수 — 기본 인원과 다르게 조정할 수 있습니다"
+                  >
+                    <span style={{ fontSize: 14, color: 'var(--muted)' }}>이 달 인원</span>
+                    <button
+                      className="back-btn !w-6 !h-6"
+                      aria-label="이 달 인원 감소"
+                      disabled={monthHc === 0}
+                      onClick={(e) => { e.stopPropagation(); onSetMonthHeadcount(year, m, monthHc - 1) }}
+                    >
+                      <MinusIcon />
+                    </button>
+                    <span style={{
+                      fontSize: 15, fontWeight: 800, minWidth: 36, textAlign: 'center',
+                      color: monthHc !== role.people.length ? 'var(--accent)' : 'var(--fg)',
+                    }}>
+                      {monthHc}명
+                    </span>
+                    <button
+                      className="back-btn !w-6 !h-6"
+                      aria-label="이 달 인원 추가"
+                      onClick={(e) => { e.stopPropagation(); onSetMonthHeadcount(year, m, monthHc + 1) }}
+                    >
+                      <PlusIcon />
+                    </button>
+                  </span>
+                )}
                 <span style={{ fontSize: 16, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
                   합계 {grandTotal}명·일
                 </span>
+                <button
+                  className="pill"
+                  title="이 달을 선택된 주간 패턴(5·6·7일)에 맞춰 채웁니다"
+                  onClick={(e) => { e.stopPropagation(); fillRoleMonth(year, m) }}
+                  style={{ fontSize: 13, padding: '2px 10px' }}
+                >
+                  이 달 채우기
+                </button>
+                <button
+                  className="pill"
+                  disabled={grandTotal === 0}
+                  title="이 달에 배정된 근무일을 전부 비웁니다"
+                  onClick={(e) => { e.stopPropagation(); clearRoleMonth(year, m) }}
+                  style={{ fontSize: 13, padding: '2px 10px', opacity: grandTotal === 0 ? 0.4 : 1, cursor: grandTotal === 0 ? 'default' : 'pointer' }}
+                >
+                  이 달 비우기
+                </button>
               </div>
 
               {/* 전체 너비 테이블 (최소 680px 이하면 가로 스크롤) */}
@@ -773,7 +891,7 @@ function CalendarModal({
                     {displayPeople.map((p, pi) => (
                       <tr key={pi} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '4px 10px 4px 0', fontWeight: 700, color: 'var(--fg)', fontSize: 16, whiteSpace: 'nowrap' }}>
-                          {isAggregate ? `전체 ${role.people.length}명` : `#${pi + 1}`}
+                          {isAggregate ? `전체 ${monthHc}명` : `#${pi + 1}`}
                         </td>
                         {days.map((d) => {
                           const date = new Date(year, m, d)
@@ -946,6 +1064,10 @@ function IntegratedCalendarModal({
 
           const roleCount = (role: Role, d: number): number => {
             const date = new Date(year, m, d)
+            if (role.costMode === 'aggregate') {
+              const template = role.people[0]
+              return template && effectivelyWorks(date, template) ? roleMonthHeadcount(role, year, m) : 0
+            }
             return role.people.filter((p) => effectivelyWorks(date, p)).length
           }
 
@@ -1034,7 +1156,7 @@ function IntegratedCalendarModal({
                             const kdEntry = keyDates.get(iso)
                             const kdc = kdEntry ? KEY_DATE_COLORS[kdEntry.type] : null
 
-                            const intensity = maxPeople > 0 ? count / maxPeople : 0
+                            const intensity = maxPeople > 0 ? Math.min(1, count / maxPeople) : 0
                             const bg = count === 0 ? undefined
                               : kdc ? (() => { const [r2,g2,b2] = kdc.workedBg.match(/\d+/g)!.map(Number); return `rgba(${r2},${g2},${b2},${(0.12 + intensity * 0.28).toFixed(2)})` })()
                               : isSat ? `rgba(59,130,246,${(0.07 + intensity * 0.18).toFixed(2)})`
@@ -1123,7 +1245,7 @@ function IntegratedCalendarModal({
               {popoverRole!.name} · {popover.year}년 {popover.m + 1}월 {popover.d}일
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {popoverRole!.people.map((p, pi) => {
+              {(popoverRole!.costMode === 'aggregate' ? popoverRole!.people.slice(0, 1) : popoverRole!.people).map((p, pi) => {
                 const date = new Date(popover.year, popover.m, popover.d)
                 const inRange = date >= D(p.s) && date <= D(p.e)
                 const works = isWorkP(date, p)
@@ -1140,7 +1262,11 @@ function IntegratedCalendarModal({
                       fontSize: 14, fontWeight: 600, fontFamily: 'inherit',
                     }}
                   >
-                    <span>#{pi + 1}</span>
+                    <span>
+                      {popoverRole!.costMode === 'aggregate'
+                        ? `전체 ${roleMonthHeadcount(popoverRole!, popover.year, popover.m)}명`
+                        : `#${pi + 1}`}
+                    </span>
                     <span>{!inRange ? '기간 외 · 클릭시 추가' : works ? '근무' : '휴무'}</span>
                   </button>
                 )

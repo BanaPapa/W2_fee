@@ -1,14 +1,14 @@
-import type { CategoryId } from '../data/categories'
 import { useProjectStore } from './projectStore'
 import { useLaborStore, laborTotal, laborWorkDays } from './laborStore'
 import { useMealStore, mealTotal } from './mealStore'
 import { useAdStore, useOperatingStore, useMiscStore, ledgerTotal } from './ledgerStore'
 import { useFeeStore, feeCostTotal, billTotal } from './feeStore'
+import { useCustomCardsStore, customCardTotal } from './customCardsStore'
 
-/** Reactive per-category totals + P&L. Subscribes to every store. */
+/** Reactive per-category totals + P&L. Subscribes to every store, including user-added cards. */
 export function useTotals(): {
-  byId: Record<CategoryId, number>
-  grand: number // 총 비용 (6개 카드 합)
+  byId: Record<string, number>
+  grand: number // 총 비용 (고정 카드 + 사용자 추가 카드 전부 합)
   bill: number // 청구수수료 (수입)
   profit: number // 순이익 = 청구수수료 - 총 비용
   totalUnits: number
@@ -23,10 +23,11 @@ export function useTotals(): {
   const fee = useFeeStore((s) => s)
   const periodStart = useProjectStore((s) => s.periodStart)
   const periodEnd = useProjectStore((s) => s.periodEnd)
+  const customCards = useCustomCardsStore((s) => s)
 
   const workDays = laborWorkDays(roles)
   const operatingMonths = new Date(periodEnd).getMonth() - new Date(periodStart).getMonth() + 1
-  const byId: Record<CategoryId, number> = {
+  const byId: Record<string, number> = {
     fee: feeCostTotal(fee),
     labor: laborTotal(roles, extras),
     meal: mealTotal(meal, roles, operatingMonths, extras),
@@ -34,7 +35,12 @@ export function useTotals(): {
     op: ledgerTotal(op),
     etc: ledgerTotal(etc),
   }
-  const grand = byId.fee + byId.labor + byId.meal + byId.ad + byId.op + byId.etc
+  let grand = byId.fee + byId.labor + byId.meal + byId.ad + byId.op + byId.etc
+  for (const c of customCards.cards) {
+    const t = customCardTotal(customCards, c.id)
+    byId[c.id] = t
+    grand += t
+  }
   const bill = billTotal(fee)
   return { byId, grand, bill, profit: bill - grand, totalUnits: fee.totalUnits, workDays }
 }

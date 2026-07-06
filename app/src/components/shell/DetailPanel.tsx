@@ -6,6 +6,7 @@ import MealDetail from '../details/MealDetail'
 import AdvertisingDetail from '../details/AdvertisingDetail'
 import OperatingDetail from '../details/OperatingDetail'
 import MiscellaneousDetail from '../details/MiscellaneousDetail'
+import CustomCardDetail from '../details/CustomCardDetail'
 
 const MAP: Record<CategoryId, () => React.JSX.Element> = {
   fee: FeeDetail,
@@ -16,14 +17,16 @@ const MAP: Record<CategoryId, () => React.JSX.Element> = {
   etc: MiscellaneousDetail,
 }
 
+const isFixedCategory = (id: string): id is CategoryId => Object.hasOwn(MAP, id)
+
 interface Props {
-  active: CategoryId
+  active: string
   ready: boolean
   reduceMotion: boolean
 }
 
 export default function DetailPanel({ active, ready, reduceMotion }: Props) {
-  const Detail = MAP[active]
+  const Detail = isFixedCategory(active) ? MAP[active] : null
   return (
     <motion.div
       className="detail-panel"
@@ -43,7 +46,7 @@ export default function DetailPanel({ active, ready, reduceMotion }: Props) {
       }}
     >
       <div className="h-full overflow-auto" data-c={active}>
-        <Detail />
+        {Detail ? <Detail /> : <CustomCardDetail cardId={active} />}
       </div>
     </motion.div>
   )

@@ -1,10 +1,12 @@
 import type { ComponentType, SVGProps } from 'react'
 import { FeeIcon, LaborIcon, MealIcon, AdIcon, OpIcon, EtcIcon } from '../components/icons'
 
+/** 6개 고정 카드. 사용자가 추가하는 카드는 `custom_<id>` 형태의 별도 문자열 id를 쓴다. */
 export type CategoryId = 'fee' | 'labor' | 'meal' | 'ad' | 'op' | 'etc'
 
 export interface CategoryMeta {
-  id: CategoryId
+  /** 고정 카드는 CategoryId, 사용자 추가 카드는 임의의 문자열(`custom_...`) */
+  id: string
   order: number // 01..06 badge
   name: string
   note: string

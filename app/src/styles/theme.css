@@ -349,6 +349,8 @@
 [data-c="ad"]    { --cat: var(--violet); }
 [data-c="op"]    { --cat: var(--amber); }
 [data-c="etc"]   { --cat: var(--slate); }
+/* 사용자가 추가한 카드 — 고정 6개 색상과 겹치지 않는 색으로 통일 */
+[data-c^="custom_"] { --cat: var(--rose, #e34948); }
 
 /* ============================================================
    Global
@@ -549,18 +551,6 @@ button { font-family: inherit; }
 .x:hover { background: color-mix(in srgb, var(--violet) 12%, white); color: var(--ink); }
 .x svg { width: 18px; height: 18px; }
 
-.menu-sheet .modal-card { width: min(320px, 95vw); }
-.menu-item {
-  display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 11px;
-  font-weight: 600; font-size: 17px; color: var(--fg); transition: background .13s; cursor: pointer;
-  width: 100%; text-align: left; border: 0; background: transparent;
-}
-.menu-item:hover { background: color-mix(in srgb, var(--violet) 9%, white); }
-.menu-item svg { width: 17px; height: 17px; color: var(--muted); }
-.menu-item.passive { pointer-events: none; opacity: .55; cursor: default; }
-.menu-sep { height: 1px; background: var(--border); margin: 5px 8px; }
-.menu-sec-hd { padding: 5px 12px 2px; font-size: 14px; font-weight: 800; letter-spacing: .05em; color: var(--muted); text-transform: uppercase; margin-top: 3px; }
-
 /* theme switcher (settings) */
 .theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 4px 8px 2px; }
 .theme-swatch {
@@ -724,6 +714,25 @@ button { font-family: inherit; }
 
 @keyframes pop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 .pop { animation: pop .14s ease; }
+
+/* 목표분양률 100% 달성 표시 — 숫자/최종 D+n 라벨이 은은하게 빛난다 */
+@keyframes rateGlow {
+  0%, 100% { text-shadow: 0 0 6px color-mix(in oklch, var(--accent) 55%, transparent); }
+  50% { text-shadow: 0 0 18px color-mix(in oklch, var(--accent) 90%, transparent), 0 0 4px color-mix(in oklch, var(--accent) 70%, transparent); }
+}
+.rate-glow { color: var(--accent); animation: rateGlow 1.8s ease-in-out infinite; }
+
+/* 누적 분양률이 100%에 못 미칠 때 경고 그라데이션 */
+.rate-gradient {
+  background: linear-gradient(90deg, var(--muted), var(--rose, #e34948));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* 보고용 요약 타일 — 인건비 직무 카드와 같은 "요약 후 클릭 상세" 패턴 */
+.report-tile { transition: border-color .15s, box-shadow .15s; background: var(--surface); }
+.report-tile.clickable:hover { border-color: var(--accent); box-shadow: var(--shadow); }
 
 /* ============================================================
    Editorial Bold — structural overrides on the shared layout

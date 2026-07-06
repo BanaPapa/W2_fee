@@ -1,27 +1,32 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'motion/react'
 import Topbar from './Topbar'
 import Overview from './Overview'
 import CardRail from './CardRail'
 import DetailPanel from './DetailPanel'
-import { CATEGORIES, type CategoryId } from '../../data/categories'
+import { CATEGORIES } from '../../data/categories'
+import { useCustomCardsStore } from '../../store/customCardsStore'
 
 const STAGGER_MS = 60
 const MOVE_MS = 520
-const PANEL_READY_MS = STAGGER_MS * (CATEGORIES.length - 1) + MOVE_MS
-const TRANSITION_MS = PANEL_READY_MS + 220
-
-const isCategory = (h: string): h is CategoryId => CATEGORIES.some((c) => c.id === h)
 
 export default function AppShell() {
   const [mode, setMode] = useState<'grid' | 'split'>('grid')
-  const [active, setActive] = useState<CategoryId | null>(null)
-  const [orderAnchor, setOrderAnchor] = useState<CategoryId | null>(null)
+  const [active, setActive] = useState<string | null>(null)
+  const [orderAnchor, setOrderAnchor] = useState<string | null>(null)
   const [flipDir, setFlipDir] = useState<1 | -1>(1)
   const [flipNonce, setFlipNonce] = useState(0)
   const [panelReady, setPanelReady] = useState(false)
   const [transitioning, setTransitioning] = useState(false)
   const [navWidth, setNavWidth] = useState(336) // 280 * 1.2
+
+  // 고정 카드 6개 + 사용자가 추가한 카드 — 애니메이션 스태거 타이밍과 해시 인식은
+  // 카드 개수가 늘어나도(카드 추가) 항상 맞아야 하므로 매번 다시 계산한다.
+  const customCards = useCustomCardsStore((s) => s.cards)
+  const allIds = useMemo(() => [...CATEGORIES.map((c) => c.id), ...customCards.map((c) => c.id)], [customCards])
+  const isCategory = useCallback((h: string): boolean => allIds.includes(h), [allIds])
+  const panelReadyMs = STAGGER_MS * (allIds.length - 1) + MOVE_MS
+  const transitionMs = panelReadyMs + 220
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -50,7 +55,7 @@ export default function AppShell() {
   const internalHash = useRef(false)
 
   const enter = useCallback(
-    (id: CategoryId, updateHash = true) => {
+    (id: string, updateHash = true) => {
       window.clearTimeout(readyTimer.current)
       window.clearTimeout(transTimer.current)
       setActive(id)
@@ -62,18 +67,18 @@ export default function AppShell() {
       setTransitioning(true)
       readyTimer.current = window.setTimeout(
         () => setPanelReady(true),
-        reduceMotion ? 0 : PANEL_READY_MS,
+        reduceMotion ? 0 : panelReadyMs,
       )
       transTimer.current = window.setTimeout(
         () => setTransitioning(false),
-        reduceMotion ? 0 : TRANSITION_MS,
+        reduceMotion ? 0 : transitionMs,
       )
       if (updateHash && window.location.hash !== '#' + id) {
         internalHash.current = true
         window.location.hash = id
       }
     },
-    [reduceMotion],
+    [reduceMotion, panelReadyMs, transitionMs],
   )
 
   const exit = useCallback(
@@ -88,7 +93,7 @@ export default function AppShell() {
       setTransitioning(true)
       transTimer.current = window.setTimeout(
         () => setTransitioning(false),
-        reduceMotion ? 0 : TRANSITION_MS,
+        reduceMotion ? 0 : transitionMs,
       )
       if (updateHash && window.location.hash) {
         internalHash.current = true
@@ -96,7 +101,7 @@ export default function AppShell() {
         history.replaceState(null, '', window.location.pathname + window.location.search)
       }
     },
-    [reduceMotion],
+    [reduceMotion, transitionMs],
   )
 
   // sync from URL hash (browser back/forward, deep links)
@@ -113,7 +118,7 @@ export default function AppShell() {
     sync()
     window.addEventListener('hashchange', sync)
     return () => window.removeEventListener('hashchange', sync)
-  }, [enter, exit])
+  }, [enter, exit, isCategory])
 
   const split = mode === 'split'
 

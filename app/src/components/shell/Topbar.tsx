@@ -1,4 +1,4 @@
-import { BackArrow, PeriodIcon, TrendIcon, GearIcon } from '../icons'
+import { BackArrow, PeriodIcon, TargetIcon, TrendIcon, GearIcon } from '../icons'
 import { useUIStore } from '../../store/uiStore'
 
 interface Props {
@@ -25,6 +25,10 @@ export default function Topbar({ mode, onBack }: Props) {
         <button className="tbtn" onClick={() => openModal('period')}>
           <PeriodIcon />
           <span className="max-[720px]:hidden">분양 기간</span>
+        </button>
+        <button className="tbtn" onClick={() => openModal('target')}>
+          <TargetIcon />
+          <span className="max-[720px]:hidden">목표분양률</span>
         </button>
         <button className="tbtn" onClick={() => openModal('trend')}>
           <TrendIcon />

@@ -1,6 +1,7 @@
 import { won, wonCompact } from '../../lib/format'
 import { useTotals } from '../../store/totals'
-import { useFeeStore } from '../../store/feeStore'
+import { useFeeStore, feePeriodRows } from '../../store/feeStore'
+import { useUIStore } from '../../store/uiStore'
 import { useCountUp } from '../../lib/useCountUp'
 import FeeStrip from '../ui/FeeStrip'
 
@@ -9,9 +10,12 @@ const openFee = () => { window.location.hash = 'fee' }
 export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
   const { grand, bill, profit, totalUnits } = useTotals()
   const fee = useFeeStore((s) => s)
+  const openModal = useUIStore((s) => s.openModal)
   const animatedBill = useCountUp(bill)
   const split = mode === 'split'
   const perUnit = totalUnits > 0 ? bill / totalUnits : 0
+  const feeRows = feePeriodRows(fee)
+  const finalRow = feeRows[feeRows.length - 1]
 
   return (
     <section
@@ -59,12 +63,12 @@ export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
       {!split && (
         <button
           className="block bg-transparent border-0 p-0 cursor-pointer mx-auto mt-6 w-full max-w-[420px]"
-          onClick={openFee}
-          aria-label="목표분양률 설정 열기"
+          onClick={() => openModal('target')}
+          aria-label="목표분양률 열기"
         >
           <FeeStrip doc={fee} height={40} />
           <div className="text-[12px] text-[var(--muted)] mt-1.5 font-semibold tracking-[0.04em]">
-            목표분양률 · 정당 → D+6 누적 {fee.periods.reduce((a, p) => a + p.ratePct, 0)}%
+            목표분양률 · 정당 → {finalRow?.label ?? ''} 누적 {finalRow?.cumPct ?? 0}%
           </div>
         </button>
       )}
