@@ -1,8 +1,7 @@
 import { create } from 'zustand'
 import { roleUnitPriceValue, roleScheduleDays, type Role } from './laborStore'
 import type { ExtraSlot } from './projectStore'
-import { api } from '../../convex/_generated/api'
-import { persistMutation } from '../lib/convexClient'
+import { saveDoc } from '../lib/firebaseClient'
 import { debounce } from '../lib/debounce'
 
 export const DEFAULT_MEAL_TAB_NAMES: Record<string, string> = {
@@ -41,7 +40,8 @@ export const useMealStore = create<MealState>()(
       woesing: 1000000,
       dinnerRoleOverrides: {},
       tabNames: {},
-      hydrate: (doc) => set({ hydrated: true, ...doc, tabNames: doc.tabNames ?? {} }),
+      hydrate: (doc) =>
+        set({ hydrated: true, ...doc, dinnerRoleOverrides: doc.dinnerRoleOverrides ?? {}, tabNames: doc.tabNames ?? {} }),
       setLunch: (v) => set({ lunchPerDay: v }),
       setDinner: (v) => set({ dinnerPerDay: v }),
       setWoesing: (v) => set({ woesing: v }),
@@ -57,7 +57,7 @@ export const mealTabName = (tabNames: Record<string, string>, id: string): strin
   tabNames[id]?.trim() || DEFAULT_MEAL_TAB_NAMES[id] || id
 
 const pushMeal = debounce((state: MealState) => {
-  persistMutation(api.meal.set, {
+  saveDoc('meal', {
     lunchPerDay: state.lunchPerDay,
     dinnerPerDay: state.dinnerPerDay,
     woesing: state.woesing,

@@ -1,6 +1,5 @@
 import { create } from 'zustand'
-import { api } from '../../convex/_generated/api'
-import { persistMutation } from '../lib/convexClient'
+import { saveDoc } from '../lib/firebaseClient'
 import { debounce } from '../lib/debounce'
 import { useProjectStore, toDate, toIso } from './projectStore'
 
@@ -136,7 +135,7 @@ export const useFeeStore = create<FeeState>()((set) => ({
       billUnitPrice:
         doc.billUnitPrice ??
         (doc.totalUnits > 0 && doc.billAmount ? Math.round(doc.billAmount / doc.totalUnits) : 0),
-      periods: doc.periods,
+      periods: doc.periods ?? [],
       stageRates: {
         desk: { org: sr.desk?.org ?? 0 },
         s1: { org: sr.s1?.org ?? 0 },
@@ -228,7 +227,7 @@ export const useFeeStore = create<FeeState>()((set) => ({
 }))
 
 const pushFee = debounce((state: FeeState) => {
-  persistMutation(api.fee.set, {
+  saveDoc('fee', {
     totalUnits: state.totalUnits,
     billAmount: billTotal(state),
     billUnitPrice: state.billUnitPrice,

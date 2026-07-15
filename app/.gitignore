@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# 일회성 마이그레이션 데이터 덤프 (Convex → RTDB)
+firebase-seed.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

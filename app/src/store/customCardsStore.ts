@@ -1,6 +1,5 @@
 import { create } from 'zustand'
-import { api } from '../../convex/_generated/api'
-import { persistMutation } from '../lib/convexClient'
+import { saveDoc } from '../lib/firebaseClient'
 import { debounce } from '../lib/debounce'
 import { ledgerTotal, type LineItem, type LedgerGroup } from './ledgerStore'
 import { CATEGORIES } from '../data/categories'
@@ -74,10 +73,10 @@ export const useCustomCardsStore = create<CustomCardsState>()((set) => ({
   hydrate: (doc) =>
     set({
       hydrated: true,
-      cards: doc.cards,
-      itemsByCard: doc.itemsByCard,
-      groupsByCard: doc.groupsByCard,
-      order: reconcileOrder(doc.order, doc.cards),
+      cards: doc.cards ?? [],
+      itemsByCard: doc.itemsByCard ?? {},
+      groupsByCard: doc.groupsByCard ?? {},
+      order: reconcileOrder(doc.order, doc.cards ?? []),
     }),
 
   addCard: (name) =>
@@ -195,7 +194,7 @@ export const useCustomCardsStore = create<CustomCardsState>()((set) => ({
 }))
 
 const pushCustomCards = debounce((state: CustomCardsState) => {
-  persistMutation(api.customCards.set, {
+  saveDoc('customCards', {
     cards: state.cards,
     itemsByCard: state.itemsByCard,
     groupsByCard: state.groupsByCard,

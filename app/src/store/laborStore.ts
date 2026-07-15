@@ -3,8 +3,7 @@ import type { Person, YMD } from '../lib/schedule'
 import { ppdP, dayKeyOf, monthKeyOf, monthWorkP, monthsOf } from '../lib/schedule'
 import type { ExtraSlot } from './projectStore'
 import { useProjectStore } from './projectStore'
-import { api } from '../../convex/_generated/api'
-import { persistMutation } from '../lib/convexClient'
+import { saveDoc } from '../lib/firebaseClient'
 import { debounce } from '../lib/debounce'
 
 /** 인건비 카드 덱의 열 수 — 슬롯 행/열 계산과 화면 렌더링이 이 값을 공유한다 */
@@ -358,8 +357,8 @@ export const useLaborStore = create<LaborState>()(
       hydrate: (doc) =>
         set({
           hydrated: true,
-          roles: resyncUsagePeriodRoles(migrateRoles(doc.roles)),
-          sectionNames: migrateSectionNames(doc.sectionNames),
+          roles: resyncUsagePeriodRoles(migrateRoles(doc.roles ?? [])),
+          sectionNames: migrateSectionNames(doc.sectionNames ?? {}),
         }),
       addRole: (section, slot) =>
         set((s) => {
@@ -539,7 +538,7 @@ export const useLaborStore = create<LaborState>()(
 )
 
 const pushLabor = debounce((state: LaborState) => {
-  persistMutation(api.labor.set, { roles: state.roles, sectionNames: state.sectionNames })
+  saveDoc('labor', { roles: state.roles, sectionNames: state.sectionNames })
 }, 400)
 
 useLaborStore.subscribe((state, prev) => {
