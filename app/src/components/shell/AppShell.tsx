@@ -127,7 +127,7 @@ export default function AppShell() {
       className={
         split
           ? 'mx-auto w-full h-screen px-5 pt-4 pb-5 flex flex-col overflow-hidden'
-          : 'mx-auto w-full max-w-[1620px] min-h-screen px-7 pt-6 pb-[72px] flex flex-col'
+          : 'mx-auto w-full max-w-[1860px] min-h-screen px-[clamp(20px,3vw,56px)] pt-6 pb-8 flex flex-col'
       }
     >
       {/* aurora background — fixed mesh + floating colour blobs */}
@@ -145,7 +145,7 @@ export default function AppShell() {
         className={
           split
             ? 'grid gap-x-5 gap-y-3.5 pt-3 min-h-0 items-stretch'
-            : 'flex flex-col justify-start pt-4 pb-8'
+            : 'flex-1 flex flex-col justify-center pt-2 pb-[7vh]'
         }
         style={
           split
@@ -161,7 +161,7 @@ export default function AppShell() {
           <Overview mode={mode} />
         </div>
 
-        <div className={split ? 'col-start-1 row-start-2 min-h-0' : 'w-full'}>
+        <div className={split ? 'col-start-1 row-start-2 min-h-0' : 'w-full mt-[clamp(28px,5vh,64px)]'}>
           <CardRail
             mode={mode}
             active={active}
