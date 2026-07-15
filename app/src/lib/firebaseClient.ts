@@ -12,8 +12,16 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID as string,
 }
 
-const app = initializeApp(firebaseConfig)
-const db = getDatabase(app)
+export const app = initializeApp(firebaseConfig)
+export const db = getDatabase(app)
+
+// 쓰기 가드 — 열람자(viewer)나 미로그인 상태에서 saveDoc이 서버에 쓰기를 시도하지 않도록
+// 막는다. authStore가 역할에 따라 이 가드를 갱신한다. (Security Rules가 진짜 방어선이고,
+// 이건 불필요한 permission-denied 오류와 무의미한 네트워크 요청을 줄이는 UX 보호막이다.)
+let writeGuard: () => boolean = () => true
+export function setWriteGuard(fn: () => boolean): void {
+  writeGuard = fn
+}
 
 /** RTDB에서 문서(트리 노드) 하나를 1회 로드. 없으면 null. (convex query .first() 대체) */
 export async function loadDoc<T>(path: string): Promise<T | null> {
@@ -35,6 +43,7 @@ export function subscribeDoc<T>(path: string, cb: (value: T | null) => void): ()
  */
 let persistErrorNotified = false
 export function saveDoc(path: string, data: unknown): void {
+  if (!writeGuard()) return // 열람자/미로그인: 로컬 변경은 두되 서버 쓰기는 하지 않음
   set(ref(db, path), stripUndefined(data)).catch((err: unknown) => {
     console.error('[firebase] 저장 실패 — 변경사항이 서버에 반영되지 않았습니다:', err)
     if (!persistErrorNotified) {
