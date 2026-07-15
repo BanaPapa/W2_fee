@@ -43,22 +43,40 @@ export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
       </button>
       <div className="uline" style={{ width: 56, margin: split ? '0 0 12px' : '0 auto 16px' }} />
 
-      <div
-        className={`flex flex-wrap items-center gap-x-5 gap-y-2 ${
-          split ? 'justify-start text-[14px]' : 'justify-center text-[16.5px]'
-        }`}
-      >
-        <span className="text-[var(--muted)]">
-          비용 <b className="text-[var(--ink)] tabular">{split ? wonCompact(grand) : won(grand)}</b>
-        </span>
-        <span className="text-[var(--muted)]">
-          순이익{' '}
-          <b className="tabular" style={{ color: profit >= 0 ? 'var(--teal)' : 'var(--rose, #e34948)' }}>
-            {split ? wonCompact(profit) : won(profit)}
-          </b>
-        </span>
-        {!split && <span className="meta-chip">{totalUnits.toLocaleString('ko-KR')}세대</span>}
-      </div>
+      {split ? (
+        // 축소 모드(카드 열림): 좌측 사이드에 간결한 인라인 표기
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 justify-start text-[14px]">
+          <span className="text-[var(--muted)]">
+            비용 <b className="text-[var(--ink)] tabular">{wonCompact(grand)}</b>
+          </span>
+          <span className="text-[var(--muted)]">
+            순이익{' '}
+            <b className="tabular" style={{ color: profit >= 0 ? 'var(--teal)' : 'var(--rose, #e34948)' }}>
+              {wonCompact(profit)}
+            </b>
+          </span>
+        </div>
+      ) : (
+        // 메인 모드: 청구수수료(위 큰 숫자) − 비용 = 순이익 산수식
+        <div className="mx-auto" style={{ maxWidth: 'min(92vw, 460px)' }}>
+          <div className="flex items-baseline" style={{ gap: 12 }}>
+            <span style={{ width: 20, textAlign: 'center', color: 'var(--muted)', fontWeight: 700, fontSize: 22, lineHeight: 1 }}>−</span>
+            <span className="text-[var(--muted)]" style={{ fontSize: 16.5 }}>비용</span>
+            <b className="tabular text-[var(--ink)]" style={{ marginLeft: 'auto', fontSize: 20, fontWeight: 700 }}>{won(grand)}</b>
+          </div>
+          <div style={{ height: 2, background: 'var(--border)', borderRadius: 2, margin: '10px 0' }} />
+          <div className="flex items-baseline" style={{ gap: 12 }}>
+            <span style={{ width: 20, textAlign: 'center', color: 'var(--muted)', fontWeight: 700, fontSize: 22, lineHeight: 1 }}>=</span>
+            <span className="text-[var(--muted)]" style={{ fontSize: 16.5 }}>순이익</span>
+            <b className="tabular" style={{ marginLeft: 'auto', fontSize: 25, fontWeight: 800, color: profit >= 0 ? 'var(--teal)' : 'var(--rose, #e34948)' }}>
+              {won(profit)}
+            </b>
+          </div>
+          <div className="flex justify-center" style={{ marginTop: 16 }}>
+            <span className="meta-chip">{totalUnits.toLocaleString('ko-KR')}세대</span>
+          </div>
+        </div>
+      )}
 
       {!split && (
         <button
