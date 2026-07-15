@@ -29,9 +29,11 @@ const PATTERNS: { v: number; label: string }[] = [
 
 const SECTION_KEYS: Section[] = ['planning', 'sales', 'other']
 
-/** 직무 카드 덱 치수 — 세로가 긴 카드를 한 행에 최대 GRID_COLS(스토어 공유값)장, 3행 이상은 자동으로 행이 늘어남 */
-const CARD_W = 220
+/** 직무 카드 덱 치수 — 한 행에 GRID_COLS(스토어 공유값)장, 3행 이상은 자동으로 행이 늘어남.
+ *  카드는 가용 폭을 꽉 채우도록 1fr로 늘어나고, 간격/높이는 아래 값으로 조절한다. */
 const MIN_ROWS = 3
+const CARD_GAP = 12
+const CARD_ROW_H = 200
 
 /** 배지 클릭 시 기획 → 영업 → 기타 순으로 구분을 순환 변경 */
 const nextSection = (s: Section): Section =>
@@ -82,13 +84,66 @@ function RateInput({ value, onCommit }: { value: number; onCommit: (v: number) =
   )
 }
 
+function PeopleCountModal({
+  open, roleName, current, onClose, onCommit,
+}: {
+  open: boolean
+  roleName: string
+  current: number
+  onClose: () => void
+  onCommit: (n: number) => void
+}) {
+  const [val, setVal] = useState('')
+  useEffect(() => { if (open) setVal(String(current)) }, [open, current])
+
+  const commit = () => {
+    const n = Math.max(0, Math.min(999, parseInt(val.replace(/[^0-9]/g, '')) || 0))
+    onCommit(n)
+    onClose()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="인원 직접 입력" sub={roleName} width={360}>
+      <div className="flex flex-col gap-4 pt-2">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <input
+            className="field-input"
+            type="text"
+            inputMode="numeric"
+            autoFocus
+            value={val}
+            onChange={(e) => setVal(e.target.value.replace(/[^0-9]/g, ''))}
+            onKeyDown={(e) => { if (e.key === 'Enter') commit() }}
+            style={{ flex: 1, fontSize: 20, textAlign: 'right', fontWeight: 700 }}
+          />
+          <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--fg)' }}>명</span>
+        </div>
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onClose}
+            style={{ background: 'var(--surface-2)', color: 'var(--fg)', border: 'none', borderRadius: 10, padding: '0 20px', height: 38, fontWeight: 700, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            취소
+          </button>
+          <button
+            onClick={commit}
+            style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '0 20px', height: 38, fontWeight: 700, fontSize: 16, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            확인
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 export default function LaborDetail() {
   const roles = useLaborStore((s) => s.roles)
   const sectionNames = useLaborStore((s) => s.sectionNames)
   const {
     addRole, changeRoleSection, removeRole, reorderRole, renameRole, setDaily, addPerson, removePerson,
     updatePerson, setRoleUsagePeriod, setRoleCostMode, setMonthHeadcount, moveRoleToSlot, swapRoleSlots,
-    insertRoleBefore,
+    insertRoleBefore, setPeopleCount,
   } = useLaborStore()
   const extras = useProjectStore((s) => s.extras)
   const periodStart = useProjectStore((s) => s.periodStart)
@@ -110,6 +165,7 @@ export default function LaborDetail() {
   const rateDragAllowed = { current: false }
 
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+  const [countRole, setCountRole] = useState<number | null>(null)
   const [integratedOpen, setIntegratedOpen] = useState(false)
   const [detailMonth, setDetailMonth] = useState<MonthCell | null>(null)
 
@@ -133,10 +189,10 @@ export default function LaborDetail() {
         }
       />
 
-      <div className="px-6 py-8 flex-1 flex items-center justify-center">
+      <div className="px-6 py-4 flex-1">
         {/*
           카드 덱: 5열 고정 보드. 각 칸은 고정 슬롯이라 이미 카드가 채워진 칸으로는
-          드롭할 수 없고, 빈 칸(점선 셀)에만 옮겨놓을 수 있다. 화면 가운데(가로·세로)에 정렬.
+          드롭할 수 없고, 빈 칸(점선 셀)에만 옮겨놓을 수 있다. 카드는 가용 폭을 꽉 채운다.
         */}
         {(() => {
           // slot(고정 위치) → 배열 인덱스 매핑. slot 미설정 직무는 배열 인덱스를 그대로 slot으로 취급(구버전 호환).
@@ -159,8 +215,8 @@ export default function LaborDetail() {
 
           return (
             <div
-              className="grid gap-5"
-              style={{ gridTemplateColumns: `repeat(${GRID_COLS}, ${CARD_W}px)`, gridAutoRows: `${CARD_W * 4 / 3}px` }}
+              className="grid w-full"
+              style={{ gridTemplateColumns: `repeat(${GRID_COLS}, minmax(0, 1fr))`, gridAutoRows: `${CARD_ROW_H}px`, gap: CARD_GAP }}
             >
               {Array.from({ length: totalCells }, (_, slot) => {
                 const roleIdx = slotToIdx.get(slot)
@@ -247,7 +303,14 @@ export default function LaborDetail() {
                           >
                             <MinusIcon />
                           </button>
-                          <span className="text-[15px] font-bold text-[var(--fg)] tabular" style={{ minWidth: 26, textAlign: 'center' }}>
+                          <span
+                            className="text-[15px] font-bold text-[var(--fg)] tabular"
+                            style={{ minWidth: 26, textAlign: 'center', cursor: 'pointer' }}
+                            title="더블클릭하여 인원 직접 입력"
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onDoubleClick={(e) => { e.stopPropagation(); setCountRole(roleIdx) }}
+                          >
                             {r.people.length}명
                           </span>
                           <button
@@ -401,6 +464,15 @@ export default function LaborDetail() {
           </div>
         )}
       </Modal>
+
+      {/* ---- 인원 직접 입력 모달 ---- */}
+      <PeopleCountModal
+        open={countRole !== null}
+        roleName={countRole !== null ? roles[countRole]?.name ?? '' : ''}
+        current={countRole !== null ? roles[countRole]?.people.length ?? 0 : 0}
+        onClose={() => setCountRole(null)}
+        onCommit={(n) => { if (countRole !== null) setPeopleCount(countRole, n) }}
+      />
 
       {/* ---- 통합 달력 모달 ---- */}
       <Modal

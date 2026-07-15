@@ -200,6 +200,8 @@ interface LaborState {
   setDaily: (i: number, daily: number) => void
   addPerson: (i: number) => void
   removePerson: (i: number) => void
+  /** 인원수를 정확한 값으로 직접 설정 (부족하면 addPerson과 동일 규칙으로 채우고, 넘치면 뒤에서 제거) */
+  setPeopleCount: (i: number, count: number) => void
   updatePerson: (roleI: number, personI: number, patch: Partial<Person>) => void
   renameSection: (section: Section, name: string) => void
   setRoleUsagePeriod: (i: number, usage: UsagePeriod | null) => void
@@ -423,6 +425,28 @@ export const useLaborStore = create<LaborState>()(
           roles: s.roles.map((r, idx) =>
             idx === i && r.people.length > 0 ? { ...r, people: r.people.slice(0, -1) } : r,
           ),
+        })),
+      setPeopleCount: (i, count) =>
+        set((s) => ({
+          roles: s.roles.map((r, idx) => {
+            if (idx !== i) return r
+            const target = Math.max(0, Math.min(999, Math.floor(count) || 0))
+            if (target === r.people.length) return r
+            if (target < r.people.length) return { ...r, people: r.people.slice(0, target) }
+            const people = [...r.people]
+            while (people.length < target) {
+              let np: Person
+              if (r.costMode === 'aggregate' && people.length > 0) np = { ...people[0] }
+              else if (r.usagePeriod) np = usagePeriodPerson(r.usagePeriod) ?? defaultFallbackPerson()
+              else if (r.section === 'other') np = mainStagePeriod() ?? defaultFallbackPerson()
+              else {
+                const last = people[people.length - 1]
+                np = last ? { s: [...last.s], e: [...last.e] } : defaultFallbackPerson()
+              }
+              people.push(np)
+            }
+            return { ...r, people }
+          }),
         })),
       updatePerson: (roleI, personI, patch) =>
         set((s) => ({
