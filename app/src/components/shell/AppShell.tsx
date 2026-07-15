@@ -145,7 +145,7 @@ export default function AppShell() {
         className={
           split
             ? 'grid gap-x-5 gap-y-3.5 pt-3 min-h-0 items-stretch'
-            : 'flex-1 flex flex-col justify-center pt-[18px] pb-[38px]'
+            : 'flex flex-col justify-start pt-4 pb-8'
         }
         style={
           split
