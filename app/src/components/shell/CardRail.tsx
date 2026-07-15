@@ -69,9 +69,9 @@ export default function CardRail({
         className={
           split
             ? `flex flex-col gap-3 min-h-0 pr-1 py-2 ${transitioning ? 'overflow-visible' : 'overflow-y-auto'}`
-            : 'grid gap-5 justify-items-center w-full'
+            : 'grid w-full'
         }
-        style={split ? undefined : { gridTemplateColumns: 'repeat(6, minmax(0,1fr))' }}
+        style={split ? undefined : { gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 'clamp(20px, 2vw, 44px)' }}
         aria-label="비용 카테고리"
       >
         <LayoutGroup>

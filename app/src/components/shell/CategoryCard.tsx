@@ -65,7 +65,7 @@ export default function CategoryCard({
       style={{
         perspective: 1400,
         zIndex: 50 - order,
-        ...(split ? { height: 78 } : { width: '100%', maxWidth: 344 }),
+        ...(split ? { height: 78 } : { width: '100%' }),
       }}
     >
       <motion.div

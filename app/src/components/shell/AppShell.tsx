@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'motion/react'
 import Topbar from './Topbar'
-import Overview from './Overview'
+import Overview, { MetaStrip } from './Overview'
 import CardRail from './CardRail'
 import DetailPanel from './DetailPanel'
 import { CATEGORIES } from '../../data/categories'
@@ -127,7 +127,7 @@ export default function AppShell() {
       className={
         split
           ? 'mx-auto w-full h-screen px-5 pt-4 pb-5 flex flex-col overflow-hidden'
-          : 'mx-auto w-full max-w-[1860px] min-h-screen px-[clamp(20px,3vw,56px)] pt-6 pb-8 flex flex-col'
+          : 'mx-auto w-full max-w-[2200px] min-h-screen px-[clamp(20px,4vw,90px)] pt-6 pb-8 flex flex-col'
       }
     >
       {/* aurora background — fixed mesh + floating colour blobs */}
@@ -138,6 +138,7 @@ export default function AppShell() {
 
       <h1 className="sr-only">강남 리버파크 분양 제안 종합 현황</h1>
       <Topbar mode={mode} onBack={() => exit(true)} />
+      {!split && <MetaStrip />}
 
       {/* SINGLE persistent tree — only the layout CSS changes between modes so
           motion `layout` can animate the cards flying grid <-> rail. */}
@@ -161,7 +162,7 @@ export default function AppShell() {
           <Overview mode={mode} />
         </div>
 
-        <div className={split ? 'col-start-1 row-start-2 min-h-0' : 'w-full mt-[clamp(28px,5vh,64px)]'}>
+        <div className={split ? 'col-start-1 row-start-2 min-h-0' : 'w-full mt-[clamp(72px,12vh,170px)]'}>
           <CardRail
             mode={mode}
             active={active}

@@ -487,10 +487,10 @@ button { font-family: inherit; }
 .card-face .cmid { margin-top: 14px; }
 .card-face .amt {
   position: absolute; top: calc(68% - 1px); left: 0; right: 0; transform: translateY(-50%);
-  text-align: center; font-size: 22px; font-weight: 800; padding: 0; color: var(--cat);
+  text-align: center; font-size: 27px; font-weight: 800; padding: 0; color: var(--cat);
 }
-.cname { font-family: var(--font-display); font-weight: 800; font-size: 21px; letter-spacing: -.01em; color: var(--ink); }
-.cnote { color: var(--muted); font-size: 13.5px; margin-top: 4px; line-height: 1.35; }
+.cname { font-family: var(--font-display); font-weight: 800; font-size: 26px; letter-spacing: -.01em; color: var(--ink); }
+.cnote { color: var(--muted); font-size: 18.5px; margin-top: 4px; line-height: 1.35; }
 .amt {
   margin-top: 10px; font-family: var(--font-display); font-size: 22px; font-weight: 800;
   color: var(--ink); letter-spacing: -.02em; font-variant-numeric: tabular-nums;

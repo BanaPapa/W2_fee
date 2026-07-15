@@ -6,14 +6,37 @@ import { useCountUp } from '../../lib/useCountUp'
 
 const openFee = () => { window.location.hash = 'fee' }
 
-export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
-  const { grand, bill, profit, totalUnits } = useTotals()
+/** 우측 상단 메타 줄 — 세대당 금액 · 세대수 · 목표분양률 D+N. AppShell(메인 모드)에서 Topbar 아래에 렌더한다. */
+export function MetaStrip() {
+  const { bill, totalUnits } = useTotals()
   const fee = useFeeStore((s) => s)
   const openModal = useUIStore((s) => s.openModal)
-  const animatedBill = useCountUp(bill)
   const perUnit = totalUnits > 0 ? bill / totalUnits : 0
   const feeRows = feePeriodRows(fee)
   const finalRow = feeRows[feeRows.length - 1]
+
+  return (
+    <div className="kicker flex flex-wrap items-center justify-end gap-x-2.5 gap-y-1" style={{ fontSize: 18, marginTop: 10 }}>
+      <span>세대당 {wonCompact(perUnit)}</span>
+      <span aria-hidden style={{ opacity: 0.5 }}>·</span>
+      <span className="meta-chip" style={{ fontSize: 17 }}>{totalUnits.toLocaleString('ko-KR')}세대</span>
+      <span aria-hidden style={{ opacity: 0.5 }}>·</span>
+      <button
+        onClick={() => openModal('target')}
+        className="bg-transparent border-0 p-0 cursor-pointer font-semibold"
+        style={{ fontFamily: 'inherit', fontSize: 18, color: 'var(--muted)', letterSpacing: 'inherit', textTransform: 'inherit' }}
+        aria-label="목표분양률 열기"
+      >
+        목표분양률 · 정당 → {finalRow?.label ?? ''} 누적 {finalRow?.cumPct ?? 0}%
+      </button>
+    </div>
+  )
+}
+
+export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
+  const { grand, bill, profit, totalUnits } = useTotals()
+  const animatedBill = useCountUp(bill)
+  const perUnit = totalUnits > 0 ? bill / totalUnits : 0
   const profitColor = profit >= 0 ? 'var(--teal)' : 'var(--rose, #e34948)'
 
   // 축소(사이드) 모드 — 카드 상세가 열렸을 때 좌측에 뜨는 간결한 표기. 기존 유지.
@@ -43,34 +66,18 @@ export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
   }
 
   // 메인 모드 — 청구수수료 − 비용 = 순이익 세로 산수식 (세 숫자 모두 같은 크기)
-  const numFont = 'clamp(24px, 3vw, 38px)'
-  const opFont = 'clamp(18px, 2.2vw, 28px)'
+  const numFont = 'clamp(29px, 3.4vw, 43px)'
+  const opFont = 'clamp(23px, 2.5vw, 33px)'
   const op = (symbol: string) => (
-    <span style={{ width: 26, flexShrink: 0, textAlign: 'center', color: 'var(--muted)', fontWeight: 700, fontSize: opFont, lineHeight: 1 }}>
+    <span style={{ width: 30, flexShrink: 0, textAlign: 'center', color: 'var(--muted)', fontWeight: 700, fontSize: opFont, lineHeight: 1 }}>
       {symbol}
     </span>
   )
 
   return (
     <section className="text-center pb-4">
-      {/* 상단 메타: 세대당 · 세대수 · 목표분양률 D+N (비용 아래에서 여기로 이동, 그래프는 표시하지 않음) */}
-      <div className="kicker flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1" style={{ fontSize: 13 }}>
-        <span>세대당 {wonCompact(perUnit)}</span>
-        <span aria-hidden style={{ opacity: 0.5 }}>·</span>
-        <span className="meta-chip">{totalUnits.toLocaleString('ko-KR')}세대</span>
-        <span aria-hidden style={{ opacity: 0.5 }}>·</span>
-        <button
-          onClick={() => openModal('target')}
-          className="bg-transparent border-0 p-0 cursor-pointer font-semibold"
-          style={{ fontFamily: 'inherit', fontSize: 13, color: 'var(--muted)' }}
-          aria-label="목표분양률 열기"
-        >
-          목표분양률 · 정당 → {finalRow?.label ?? ''} 누적 {finalRow?.cumPct ?? 0}%
-        </button>
-      </div>
-
-      {/* 산수식 */}
-      <div className="mx-auto tabular" style={{ maxWidth: 'min(94vw, 560px)', marginTop: 20 }}>
+      {/* 산수식 (메타 줄은 우측 상단 MetaStrip으로 이동) */}
+      <div className="mx-auto tabular" style={{ maxWidth: 'min(94vw, 640px)' }}>
         {/* 청구수수료 (클릭 시 수수료 상세) */}
         <button
           onClick={openFee}
@@ -79,14 +86,14 @@ export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
           aria-label="수수료 상세 열기"
         >
           {op('')}
-          <span className="text-[var(--muted)]" style={{ fontSize: 17 }}>청구수수료</span>
+          <span className="text-[var(--muted)]" style={{ fontSize: 22 }}>청구수수료</span>
           <b style={{ marginLeft: 'auto', fontSize: numFont, fontWeight: 800, color: 'var(--accent)', whiteSpace: 'nowrap' }}>{won(animatedBill)}</b>
         </button>
 
         {/* − 비용 */}
         <div className="flex items-center" style={{ gap: 12, marginTop: 14 }}>
           {op('−')}
-          <span className="text-[var(--muted)]" style={{ fontSize: 17 }}>비용</span>
+          <span className="text-[var(--muted)]" style={{ fontSize: 22 }}>비용</span>
           <b className="text-[var(--ink)]" style={{ marginLeft: 'auto', fontSize: numFont, fontWeight: 800, whiteSpace: 'nowrap' }}>{won(grand)}</b>
         </div>
 
@@ -96,7 +103,7 @@ export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
         {/* = 순이익 */}
         <div className="flex items-center" style={{ gap: 12 }}>
           {op('=')}
-          <span className="text-[var(--muted)]" style={{ fontSize: 17 }}>순이익</span>
+          <span className="text-[var(--muted)]" style={{ fontSize: 22 }}>순이익</span>
           <b style={{ marginLeft: 'auto', fontSize: numFont, fontWeight: 800, color: profitColor, whiteSpace: 'nowrap' }}>{won(profit)}</b>
         </div>
       </div>
