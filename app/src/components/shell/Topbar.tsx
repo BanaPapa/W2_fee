@@ -1,5 +1,7 @@
-import { BackArrow, PeriodIcon, TargetIcon, TrendIcon, GearIcon } from '../icons'
+import { BackArrow, PeriodIcon, TargetIcon, TrendIcon, GearIcon, LogoutIcon } from '../icons'
 import { useUIStore } from '../../store/uiStore'
+import { useAuthStore } from '../../store/authStore'
+import { signOutUser } from '../../lib/firebaseAuth'
 
 interface Props {
   mode: 'grid' | 'split'
@@ -8,6 +10,7 @@ interface Props {
 
 export default function Topbar({ mode, onBack }: Props) {
   const openModal = useUIStore((s) => s.openModal)
+  const displayName = useAuthStore((s) => s.displayName)
   const split = mode === 'split'
 
   return (
@@ -36,6 +39,23 @@ export default function Topbar({ mode, onBack }: Props) {
         </button>
         <button className="tbtn icononly" aria-label="설정 메뉴" onClick={() => openModal('settings')}>
           <GearIcon />
+        </button>
+        {displayName && (
+          <span
+            className="max-[860px]:hidden text-[14px] font-semibold pl-1 pr-0.5"
+            style={{ color: 'var(--muted)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            title={displayName}
+          >
+            {displayName}
+          </span>
+        )}
+        <button
+          className="tbtn icononly"
+          aria-label="로그아웃"
+          title="로그아웃"
+          onClick={() => signOutUser()}
+        >
+          <LogoutIcon />
         </button>
       </nav>
     </header>

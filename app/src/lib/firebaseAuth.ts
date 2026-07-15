@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
+  sendPasswordResetEmail,
   onAuthStateChanged,
   type User,
 } from 'firebase/auth'
@@ -46,6 +47,7 @@ export const signInEmail = (email: string, pw: string) => signInWithEmailAndPass
 export const signUpEmail = (email: string, pw: string) => createUserWithEmailAndPassword(auth, email, pw)
 export const signInGoogle = () => signInWithPopup(auth, googleProvider)
 export const signOutUser = () => signOut(auth)
+export const resetPassword = (email: string) => sendPasswordResetEmail(auth, email)
 
 export function onAuthChange(cb: (user: User | null) => void): () => void {
   return onAuthStateChanged(auth, cb)

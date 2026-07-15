@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { signInEmail, signUpEmail, signInGoogle, authErrorMessage } from '../../lib/firebaseAuth'
+import { signInEmail, signUpEmail, signInGoogle, resetPassword, authErrorMessage } from '../../lib/firebaseAuth'
 
 type Mode = 'signin' | 'signup'
 
@@ -13,11 +13,13 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setInfo(null)
     setBusy(true)
     try {
       if (mode === 'signin') await signInEmail(email.trim(), pw)
@@ -30,8 +32,28 @@ export default function LoginScreen() {
     }
   }
 
+  const forgotPassword = async () => {
+    setError(null)
+    setInfo(null)
+    const target = email.trim()
+    if (!target) {
+      setError('비밀번호를 재설정할 이메일을 먼저 입력해 주세요.')
+      return
+    }
+    setBusy(true)
+    try {
+      await resetPassword(target)
+      setInfo(`${target} 로 비밀번호 재설정 메일을 보냈습니다. 메일함을 확인해 주세요.`)
+    } catch (err) {
+      setError(authErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const google = async () => {
     setError(null)
+    setInfo(null)
     setBusy(true)
     try {
       await signInGoogle()
@@ -64,10 +86,20 @@ export default function LoginScreen() {
             value={pw} onChange={(e) => setPw(e.target.value)} required
           />
           {error && <div style={{ fontSize: 13.5, color: '#ef4444', fontWeight: 600 }}>{error}</div>}
+          {info && <div style={{ fontSize: 13.5, color: '#0ea56e', fontWeight: 600, lineHeight: 1.45 }}>{info}</div>}
           <button type="submit" disabled={busy} style={{ ...btnPrimary, opacity: busy ? 0.6 : 1, marginTop: 4 }}>
             {busy ? '처리 중...' : mode === 'signin' ? '로그인' : '회원가입'}
           </button>
         </form>
+
+        {mode === 'signin' && (
+          <button
+            onClick={forgotPassword} disabled={busy}
+            style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--muted)', fontWeight: 600, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit', width: '100%', textAlign: 'center' }}
+          >
+            비밀번호를 잊으셨나요?
+          </button>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0' }}>
           <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
@@ -88,7 +120,7 @@ export default function LoginScreen() {
         </button>
 
         <button
-          onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null) }}
+          onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); setInfo(null) }}
           style={{ marginTop: 18, background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}
         >
           {mode === 'signin' ? '계정이 없으신가요? 회원가입' : '이미 계정이 있으신가요? 로그인'}
