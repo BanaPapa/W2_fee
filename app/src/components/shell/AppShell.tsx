@@ -127,7 +127,7 @@ export default function AppShell() {
       className={
         split
           ? 'mx-auto w-full h-screen px-5 pt-4 pb-5 flex flex-col overflow-hidden'
-          : 'mx-auto w-full max-w-[2200px] min-h-screen px-[clamp(20px,4vw,90px)] pt-6 pb-8 flex flex-col'
+          : 'mx-auto w-full min-h-screen px-[4vw] pt-6 pb-8 flex flex-col'
       }
     >
       {/* aurora background — fixed mesh + floating colour blobs */}

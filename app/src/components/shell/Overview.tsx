@@ -66,10 +66,11 @@ export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
   }
 
   // 메인 모드 — 청구수수료 − 비용 = 순이익 세로 산수식 (세 숫자 모두 같은 크기)
-  const numFont = 'clamp(29px, 3.4vw, 43px)'
-  const opFont = 'clamp(23px, 2.5vw, 33px)'
+  const numFont = 'clamp(48px, 5.2vw, 86px)'
+  const labelFont = 'clamp(26px, 2.2vw, 34px)'
+  const opFont = 'clamp(32px, 3.2vw, 52px)'
   const op = (symbol: string) => (
-    <span style={{ width: 30, flexShrink: 0, textAlign: 'center', color: 'var(--muted)', fontWeight: 700, fontSize: opFont, lineHeight: 1 }}>
+    <span style={{ width: 52, flexShrink: 0, textAlign: 'center', color: 'var(--muted)', fontWeight: 700, fontSize: opFont, lineHeight: 1 }}>
       {symbol}
     </span>
   )
@@ -77,7 +78,7 @@ export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
   return (
     <section className="text-center pb-4">
       {/* 산수식 (메타 줄은 우측 상단 MetaStrip으로 이동) */}
-      <div className="mx-auto tabular" style={{ maxWidth: 'min(94vw, 640px)' }}>
+      <div className="mx-auto tabular" style={{ maxWidth: 'min(94vw, 1160px)' }}>
         {/* 청구수수료 (클릭 시 수수료 상세) */}
         <button
           onClick={openFee}
@@ -86,24 +87,24 @@ export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
           aria-label="수수료 상세 열기"
         >
           {op('')}
-          <span className="text-[var(--muted)]" style={{ fontSize: 22 }}>청구수수료</span>
+          <span className="text-[var(--muted)]" style={{ fontSize: labelFont }}>청구수수료</span>
           <b style={{ marginLeft: 'auto', fontSize: numFont, fontWeight: 800, color: 'var(--accent)', whiteSpace: 'nowrap' }}>{won(animatedBill)}</b>
         </button>
 
         {/* − 비용 */}
-        <div className="flex items-center" style={{ gap: 12, marginTop: 14 }}>
+        <div className="flex items-center" style={{ gap: 12, marginTop: 22 }}>
           {op('−')}
-          <span className="text-[var(--muted)]" style={{ fontSize: 22 }}>비용</span>
+          <span className="text-[var(--muted)]" style={{ fontSize: labelFont }}>비용</span>
           <b className="text-[var(--ink)]" style={{ marginLeft: 'auto', fontSize: numFont, fontWeight: 800, whiteSpace: 'nowrap' }}>{won(grand)}</b>
         </div>
 
         {/* 구분선 */}
-        <div style={{ height: 2, background: 'var(--border)', borderRadius: 2, margin: '14px 0' }} />
+        <div style={{ height: 2, background: 'var(--border)', borderRadius: 2, margin: '22px 0' }} />
 
         {/* = 순이익 */}
         <div className="flex items-center" style={{ gap: 12 }}>
           {op('=')}
-          <span className="text-[var(--muted)]" style={{ fontSize: 22 }}>순이익</span>
+          <span className="text-[var(--muted)]" style={{ fontSize: labelFont }}>순이익</span>
           <b style={{ marginLeft: 'auto', fontSize: numFont, fontWeight: 800, color: profitColor, whiteSpace: 'nowrap' }}>{won(profit)}</b>
         </div>
       </div>
