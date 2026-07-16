@@ -71,7 +71,16 @@ export default function CardRail({
             ? `flex flex-col gap-3 min-h-0 pr-1 py-2 ${transitioning ? 'overflow-visible' : 'overflow-y-auto'}`
             : 'grid w-full h-full'
         }
-        style={split ? undefined : { gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 'clamp(20px, 2vw, 44px)' }}
+        style={
+          split
+            ? undefined
+            : {
+                gridTemplateColumns: 'repeat(6, minmax(0,1fr))',
+                gap: 'clamp(20px, 2vw, 44px)',
+                // 카드가 밴드 높이를 cqh로 참조해 5:7 비율을 유지할 수 있게 컨테이너로 지정
+                containerType: 'size',
+              }
+        }
         aria-label="비용 카테고리"
       >
         <LayoutGroup>

@@ -65,7 +65,18 @@ export default function CategoryCard({
       style={{
         perspective: 1400,
         zIndex: 50 - order,
-        ...(split ? { height: 78 } : { width: '100%', height: '100%' }),
+        // 그리드 모드: 5:7 비율 고정 — 열 폭과 밴드 높이(100cqh, CardRail 섹션 기준) 중
+        // 작은 쪽에 맞춰 비율을 유지한 채 커지고 작아진다. 밴드 안에서 상하좌우 중앙.
+        ...(split
+          ? { height: 78 }
+          : {
+              width: '100%',
+              maxWidth: 'calc(100cqh * 5 / 7)',
+              aspectRatio: '5 / 7',
+              margin: '0 auto',
+              alignSelf: 'center',
+              minHeight: 0,
+            }),
       }}
     >
       <motion.div
