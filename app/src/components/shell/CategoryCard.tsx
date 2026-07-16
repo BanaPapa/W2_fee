@@ -65,13 +65,13 @@ export default function CategoryCard({
       style={{
         perspective: 1400,
         zIndex: 50 - order,
-        ...(split ? { height: 78 } : { width: '100%' }),
+        ...(split ? { height: 78 } : { width: '100%', height: '100%' }),
       }}
     >
       <motion.div
         key={`${mode}-${flipNonce}`}
         className={split ? 'rail-face' : 'card-face'}
-        style={split ? { height: '100%' } : { aspectRatio: '5 / 7' }}
+        style={{ height: '100%' }}
         initial={false}
         animate={reduceMotion || flipNonce === 0 ? {} : { rotateY: flipKeyframes }}
         transition={{
@@ -84,11 +84,14 @@ export default function CategoryCard({
         <div className="emblem" aria-hidden>
           <Icon />
         </div>
-        <div className="cmid">
-          <div className="cname">{meta.name}</div>
-          {!split && <div className="cnote">{meta.note}</div>}
+        {/* cbody: 그리드 카드에서 제목+금액을 중앙에 묶는 래퍼 — rail(사이드) 모드에서는 display:contents로 무시된다 */}
+        <div className="cbody">
+          <div className="cmid">
+            <div className="cname">{meta.name}</div>
+            {!split && <div className="cnote">{meta.note}</div>}
+          </div>
+          <div className="amt tabular">{won(animatedAmount)}</div>
         </div>
-        <div className="amt tabular">{won(animatedAmount)}</div>
       </motion.div>
     </motion.div>
   )

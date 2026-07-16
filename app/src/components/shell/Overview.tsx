@@ -6,28 +6,48 @@ import { useCountUp } from '../../lib/useCountUp'
 
 const openFee = () => { window.location.hash = 'fee' }
 
-/** 우측 상단 메타 줄 — 세대당 금액 · 세대수 · 목표분양률 D+N. AppShell(메인 모드)에서 Topbar 아래에 렌더한다. */
-export function MetaStrip() {
+/**
+ * 중단 밴드 우측 메타 패널 — 행당 정보 1개(세대당 단가/세대수/목표분양률) 세로 나열.
+ * AppShell(메인 모드)에서 산수식 밴드 안에 절대배치로 렌더한다. 이후 다른 데이터가 추가될 수 있는 영역.
+ */
+export function MetaPanel() {
   const { bill, totalUnits } = useTotals()
   const fee = useFeeStore((s) => s)
   const openModal = useUIStore((s) => s.openModal)
-  const perUnit = totalUnits > 0 ? bill / totalUnits : 0
+  const perUnit = totalUnits > 0 ? Math.round(bill / totalUnits) : 0
   const feeRows = feePeriodRows(fee)
   const finalRow = feeRows[feeRows.length - 1]
 
+  const label: React.CSSProperties = {
+    fontSize: 15, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em',
+  }
+  const value: React.CSSProperties = {
+    fontSize: 22, fontWeight: 800, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums',
+  }
+
   return (
-    <div className="kicker flex flex-wrap items-center justify-end gap-x-2.5 gap-y-1" style={{ fontSize: 18, marginTop: 10 }}>
-      <span>세대당 {wonCompact(perUnit)}</span>
-      <span aria-hidden style={{ opacity: 0.5 }}>·</span>
-      <span className="meta-chip" style={{ fontSize: 17 }}>{totalUnits.toLocaleString('ko-KR')}세대</span>
-      <span aria-hidden style={{ opacity: 0.5 }}>·</span>
+    <div
+      className="absolute right-0 top-1/2 -translate-y-1/2 max-[1240px]:hidden flex flex-col text-right"
+      style={{ gap: 26 }}
+    >
+      <div className="flex flex-col" style={{ gap: 4 }}>
+        <span style={label}>세대당 단가</span>
+        <span style={value}>{won(perUnit)}</span>
+      </div>
+      <div className="flex flex-col" style={{ gap: 4 }}>
+        <span style={label}>세대수</span>
+        <span style={value}>{totalUnits.toLocaleString('ko-KR')} 세대</span>
+      </div>
       <button
         onClick={() => openModal('target')}
-        className="bg-transparent border-0 p-0 cursor-pointer font-semibold"
-        style={{ fontFamily: 'inherit', fontSize: 18, color: 'var(--muted)', letterSpacing: 'inherit', textTransform: 'inherit' }}
+        className="bg-transparent border-0 p-0 cursor-pointer flex flex-col text-right"
+        style={{ gap: 4, fontFamily: 'inherit' }}
         aria-label="목표분양률 열기"
       >
-        목표분양률 · 정당 → {finalRow?.label ?? ''} 누적 {finalRow?.cumPct ?? 0}%
+        <span style={label}>목표분양률</span>
+        <span style={{ ...value, color: 'var(--accent)' }}>
+          정당 → {finalRow?.label ?? ''} 누적 {finalRow?.cumPct ?? 0}%
+        </span>
       </button>
     </div>
   )
@@ -65,7 +85,8 @@ export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
     )
   }
 
-  // 메인 모드 — 청구수수료 − 비용 = 순이익 세로 산수식 (세 숫자 모두 같은 크기)
+  // 메인 모드 — 청구수수료 − 비용 = 순이익 세로 산수식 (세 숫자 모두 같은 크기).
+  // 밴드(중단 1/2) 안에서 AppShell이 상하좌우 중앙에 배치한다.
   const numFont = 'clamp(48px, 5.2vw, 86px)'
   const labelFont = 'clamp(26px, 2.2vw, 34px)'
   const opFont = 'clamp(32px, 3.2vw, 52px)'
@@ -76,8 +97,7 @@ export default function Overview({ mode }: { mode: 'grid' | 'split' }) {
   )
 
   return (
-    <section className="text-center pb-4">
-      {/* 산수식 (메타 줄은 우측 상단 MetaStrip으로 이동) */}
+    <section className="text-center w-full">
       <div className="mx-auto tabular" style={{ maxWidth: 'min(94vw, 1160px)' }}>
         {/* 청구수수료 (클릭 시 수수료 상세) */}
         <button
