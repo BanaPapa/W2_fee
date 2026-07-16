@@ -1,0 +1,44 @@
+{
+  "rules": {
+    "roles": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && ( root.child('roles').child(auth.uid).val() === 'admin' || (!root.child('roles').exists() && auth.uid === $uid && newData.val() === 'admin') )",
+        ".validate": "newData.isString() && (newData.val() === 'admin' || newData.val() === 'editor' || newData.val() === 'viewer')"
+      }
+    },
+
+    "users": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "project": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).exists()",
+      ".write": "root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'editor'"
+    },
+    "labor": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).exists()",
+      ".write": "root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'editor'"
+    },
+    "meal": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).exists()",
+      ".write": "root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'editor'"
+    },
+    "fee": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).exists()",
+      ".write": "root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'editor'"
+    },
+    "customCards": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).exists()",
+      ".write": "root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'editor'"
+    },
+    "ledgers": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).exists()",
+      ".write": "root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'editor'"
+    }
+  }
+}

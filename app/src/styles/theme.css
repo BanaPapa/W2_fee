@@ -453,7 +453,9 @@ button { font-family: inherit; }
 /* ============================================================
    Cards & rail
    ============================================================ */
-.ccard { position: relative; cursor: pointer; will-change: transform; }
+/* container-type: inline-size → 카드 폭(cqw)에 비례해 내부 텍스트·아이콘이 함께 커진다.
+   (카드는 5:7 비율 고정이라 폭 기준만으로 충분하고, aspect-ratio 유래 높이와도 안전) */
+.ccard { position: relative; cursor: pointer; will-change: transform; container-type: inline-size; }
 
 /* grid (vertical) card */
 .card-face {
@@ -478,19 +480,30 @@ button { font-family: inherit; }
 .emblem svg { width: 32px; height: 32px; stroke-width: 1.7; }
 .cmid { text-align: center; margin-top: 4px; }
 
-/* grid card layout */
+/* grid card layout — 카드 크기에 비례(cq 단위)해 아이콘/텍스트가 커지고, 제목+금액은 카드 중앙에 묶인다 */
 .card-face .emblem {
-  flex: none; margin: 30px auto 0; width: 64px; height: 64px; border-radius: 20px;
+  flex: none; margin: clamp(16px, 10cqw, 44px) auto 0;
+  width: clamp(44px, 21cqw, 84px); height: clamp(44px, 21cqw, 84px); border-radius: 26%;
   background: color-mix(in srgb, var(--cat) 16%, white);
   box-shadow: 0 8px 20px color-mix(in srgb, var(--cat) 26%, transparent);
 }
-.card-face .cmid { margin-top: 14px; }
-.card-face .amt {
-  position: absolute; top: calc(68% - 1px); left: 0; right: 0; transform: translateY(-50%);
-  text-align: center; font-size: 22px; font-weight: 800; padding: 0; color: var(--cat);
+.card-face .emblem svg { width: 46%; height: 46%; }
+/* 제목+금액 그룹: 남은 공간의 정중앙 — 카드가 늘어나도 텍스트 사이가 벌어지지 않는다 */
+.card-face .cbody {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: clamp(8px, 7cqw, 36px);
 }
-.cname { font-family: var(--font-display); font-weight: 800; font-size: 21px; letter-spacing: -.01em; color: var(--ink); }
-.cnote { color: var(--muted); font-size: 13.5px; margin-top: 4px; line-height: 1.35; }
+.rail-face .cbody { display: contents; }
+.card-face .cmid { margin-top: 0; }
+.card-face .cname { font-size: clamp(17px, 8cqw, 36px); }
+.card-face .cnote { font-size: clamp(12px, 4cqw, 20px); }
+.card-face .amt {
+  position: static; transform: none; margin-top: 0; text-align: center;
+  font-size: clamp(15px, 7cqw, 34px); font-weight: 800; padding: 0 8px; color: var(--cat);
+  white-space: nowrap;
+}
+.cname { font-family: var(--font-display); font-weight: 800; font-size: 26px; letter-spacing: -.01em; color: var(--ink); }
+.cnote { color: var(--muted); font-size: 18.5px; margin-top: 4px; line-height: 1.35; }
 .amt {
   margin-top: 10px; font-family: var(--font-display); font-size: 22px; font-weight: 800;
   color: var(--ink); letter-spacing: -.02em; font-variant-numeric: tabular-nums;

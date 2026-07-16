@@ -1,6 +1,5 @@
 import { create } from 'zustand'
-import { api } from '../../convex/_generated/api'
-import { persistMutation } from '../lib/convexClient'
+import { saveDoc } from '../lib/firebaseClient'
 import { debounce } from '../lib/debounce'
 
 export interface ExtraSlot { name: string; days: number }
@@ -177,9 +176,9 @@ export const useProjectStore = create<ProjectState>()(
           hydrated: true,
           periodStart: doc.periodStart,
           periodEnd: doc.periodEnd,
-          extras: doc.extras,
-          stages: doc.stages,
-          eventBlocks: doc.eventBlocks,
+          extras: doc.extras ?? [],
+          stages: doc.stages ?? [],
+          eventBlocks: doc.eventBlocks ?? [],
           project: { title: doc.title, pm: doc.pm },
         }),
 
@@ -378,7 +377,7 @@ export const useProjectStore = create<ProjectState>()(
 )
 
 const pushProject = debounce((state: ProjectState) => {
-  persistMutation(api.project.set, {
+  saveDoc('project', {
     title: state.project.title,
     pm: state.project.pm,
     periodStart: state.periodStart,

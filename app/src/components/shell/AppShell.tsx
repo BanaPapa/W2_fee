@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'motion/react'
 import Topbar from './Topbar'
-import Overview from './Overview'
+import Overview, { MetaPanel } from './Overview'
 import CardRail from './CardRail'
 import DetailPanel from './DetailPanel'
 import { CATEGORIES } from '../../data/categories'
@@ -127,7 +127,7 @@ export default function AppShell() {
       className={
         split
           ? 'mx-auto w-full h-screen px-5 pt-4 pb-5 flex flex-col overflow-hidden'
-          : 'mx-auto w-full max-w-[1620px] min-h-screen px-7 pt-6 pb-[72px] flex flex-col'
+          : 'mx-auto w-full h-screen px-[4vw] pt-5 pb-[2.5vh] flex flex-col overflow-hidden'
       }
     >
       {/* aurora background — fixed mesh + floating colour blobs */}
@@ -145,7 +145,7 @@ export default function AppShell() {
         className={
           split
             ? 'grid gap-x-5 gap-y-3.5 pt-3 min-h-0 items-stretch'
-            : 'flex-1 flex flex-col justify-center pt-[18px] pb-[38px]'
+            : 'flex-1 min-h-0 grid'
         }
         style={
           split
@@ -154,14 +154,17 @@ export default function AppShell() {
                 gridTemplateRows: 'auto minmax(0,1fr)',
                 height: 'calc(100vh - 72px)',
               }
-            : undefined
+            : // 3분할 구도: 헤더 아래 남은 높이를 정확히 반으로 — 위 밴드(산수식) / 아래 밴드(카드).
+              // 각 밴드 안에서 요소를 중앙 배치하므로 창 크기가 어떻게 변해도 위치가 고정된다.
+              { gridTemplateRows: 'minmax(0,1fr) minmax(0,1fr)' }
         }
       >
-        <div className={split ? 'col-start-1 row-start-1' : ''}>
+        <div className={split ? 'col-start-1 row-start-1' : 'relative min-h-0 flex items-center justify-center'}>
           <Overview mode={mode} />
+          {!split && <MetaPanel />}
         </div>
 
-        <div className={split ? 'col-start-1 row-start-2 min-h-0' : 'w-full'}>
+        <div className={split ? 'col-start-1 row-start-2 min-h-0' : 'w-full min-h-0 py-[1.5vh]'}>
           <CardRail
             mode={mode}
             active={active}

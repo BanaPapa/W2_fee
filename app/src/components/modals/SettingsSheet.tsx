@@ -5,13 +5,11 @@ import { useThemeStore, THEMES } from '../../store/themeStore'
 import { useCustomCardsStore, isFixedCardId } from '../../store/customCardsStore'
 import { CATEGORIES } from '../../data/categories'
 import { PlusIcon, TrashIcon, GripIcon } from '../icons'
+import { useAuthStore } from '../../store/authStore'
+import AccountPanel from '../auth/AccountPanel'
+import AdminUsersPanel from '../auth/AdminUsersPanel'
 
-type Tab = 'design' | 'cards'
-
-const NAV_ITEMS: { id: Tab; label: string }[] = [
-  { id: 'design', label: '디자인' },
-  { id: 'cards', label: '카드 관리' },
-]
+type Tab = 'design' | 'cards' | 'account' | 'users'
 
 export default function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const project = useProjectStore((s) => s.project)
@@ -22,6 +20,14 @@ export default function SettingsSheet({ open, onClose }: { open: boolean; onClos
   const itemsByCard = useCustomCardsStore((s) => s.itemsByCard)
   const cardOrder = useCustomCardsStore((s) => s.order)
   const { addCard, removeCard, reorderCard } = useCustomCardsStore()
+
+  const role = useAuthStore((s) => s.role)
+  const navItems: { id: Tab; label: string }[] = [
+    { id: 'design', label: '디자인' },
+    { id: 'cards', label: '카드 관리' },
+    { id: 'account', label: '계정' },
+    ...(role === 'admin' ? [{ id: 'users' as Tab, label: '사용자 관리' }] : []),
+  ]
 
   const [tab, setTab] = useState<Tab>('design')
   const [newCardName, setNewCardName] = useState('')
@@ -62,7 +68,7 @@ export default function SettingsSheet({ open, onClose }: { open: boolean; onClos
       <div className="mt-1.5 flex-1 min-h-0 flex" style={{ gap: 20 }}>
         {/* 좌측 네비게이션 */}
         <nav className="flex flex-col gap-1 flex-none" style={{ width: 150 }}>
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setTab(item.id)}
@@ -184,6 +190,10 @@ export default function SettingsSheet({ open, onClose }: { open: boolean; onClos
               </form>
             </div>
           )}
+
+          {tab === 'account' && <AccountPanel />}
+
+          {tab === 'users' && role === 'admin' && <AdminUsersPanel />}
         </div>
       </div>
 

@@ -1,6 +1,5 @@
 import { create } from 'zustand'
-import { api } from '../../convex/_generated/api'
-import { persistMutation } from '../lib/convexClient'
+import { saveDoc } from '../lib/firebaseClient'
 import { debounce } from '../lib/debounce'
 
 export type LineType = '1회성' | '일별' | '월별' | '수동'
@@ -78,8 +77,8 @@ export function makeLedgerStore(
         const groups = doc.groups && doc.groups.length > 0 ? doc.groups : initialGroups
         set({
           hydrated: true,
-          items: doc.items.map((it) => ({ ...it, groupKey: resolveGroupKey(it.groupKey, groups) })),
-          chips: doc.chips,
+          items: (doc.items ?? []).map((it) => ({ ...it, groupKey: resolveGroupKey(it.groupKey, groups) })),
+          chips: doc.chips ?? chips,
           groups,
         })
       },
@@ -147,7 +146,7 @@ export function makeLedgerStore(
   )
 
   const push = debounce((state: LedgerState) => {
-    persistMutation(api.ledger.set, { category, items: state.items, chips: state.chips, groups: state.groups })
+    saveDoc(`ledgers/${category}`, { category, items: state.items, chips: state.chips, groups: state.groups })
   }, 400)
 
   store.subscribe((state, prev) => {
